@@ -99,7 +99,7 @@ class AuthService {
       );
 
       if (userCredential.user == null) {
-        throw Exception('Giriş yapılamadı');
+        throw Exception('Kullanıcı bulunamadı');
       }
 
       final userDoc = await _firestore
@@ -113,21 +113,18 @@ class AuthService {
 
       return UserModel.fromJson(userDoc.data()!);
     } on FirebaseAuthException catch (e) {
-      String errorMessage;
       switch (e.code) {
         case 'user-not-found':
-          errorMessage = 'Bu e-posta adresi ile kayıtlı kullanıcı bulunamadı';
-          break;
+          throw Exception('Bu e-posta adresi ile kayıtlı kullanıcı bulunamadı');
         case 'wrong-password':
-          errorMessage = 'Hatalı şifre';
-          break;
+          throw Exception('Hatalı şifre');
         case 'invalid-email':
-          errorMessage = 'Geçersiz e-posta adresi';
-          break;
+          throw Exception('Geçersiz e-posta adresi');
+        case 'user-disabled':
+          throw Exception('Bu hesap devre dışı bırakılmış');
         default:
-          errorMessage = e.message ?? 'Bir hata oluştu';
+          throw Exception('Giriş yapılırken bir hata oluştu: ${e.message}');
       }
-      throw Exception(errorMessage);
     }
   }
 
@@ -135,8 +132,8 @@ class AuthService {
   Future<void> logout() async {
     try {
       await _auth.signOut();
-    } catch (e) {
-      throw Exception('Çıkış yapılırken bir hata oluştu');
+    } on FirebaseAuthException catch (e) {
+      throw Exception('Çıkış yapılırken bir hata oluştu: ${e.message}');
     }
   }
 
@@ -184,6 +181,20 @@ class AuthService {
           .update({'avatarUrl': avatarUrl});
     } catch (e) {
       throw Exception('Avatar güncellenirken bir hata oluştu: $e');
+    }
+  }
+
+  Future<UserModel> getUser(String userId) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      
+      if (!userDoc.exists) {
+        throw Exception('Kullanıcı bulunamadı');
+      }
+
+      return UserModel.fromJson(userDoc.data()!);
+    } catch (e) {
+      throw Exception('Kullanıcı bilgileri alınırken bir hata oluştu: $e');
     }
   }
 } 

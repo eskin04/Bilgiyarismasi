@@ -21,7 +21,15 @@ class QuizProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      _currentQuestion = await _geminiService.generateQuestion(category);
+      final questions = await _geminiService.generateQuestions(
+        category: category,
+        count: 1,
+      );
+      if (questions.isNotEmpty) {
+        _currentQuestion = questions.first;
+      } else {
+        _error = 'No questions generated';
+      }
     } catch (e) {
       _error = e.toString();
     } finally {
