@@ -9,6 +9,12 @@ enum RoomStatus {
   cancelled   // Game was cancelled
 }
 
+enum QuestionStatus {
+  waiting,    // Question is active, waiting for answers
+  feedback,   // Both players answered or time is up, showing feedback
+  next        // Ready to move to next question
+}
+
 class Room {
   final String id;
   final String hostId;
@@ -21,6 +27,9 @@ class Room {
   final DateTime createdAt;
   final bool gameStarted;
   final Map<String, PlayerInfo> players;
+  final QuestionStatus questionStatus;
+  final Map<String, String> currentAnswers;
+  final int defaultTimeLimit;
 
   Room({
     required this.id,
@@ -34,6 +43,9 @@ class Room {
     required this.createdAt,
     this.gameStarted = false,
     required this.players,
+    this.questionStatus = QuestionStatus.waiting,
+    this.currentAnswers = const {},
+    this.defaultTimeLimit = 30,
   });
 
   factory Room.fromJson(Map<String, dynamic> json) {
@@ -60,6 +72,12 @@ class Room {
             ),
           ) ??
           {},
+      questionStatus: QuestionStatus.values.firstWhere(
+        (e) => e.toString() == 'QuestionStatus.${json['questionStatus']}',
+        orElse: () => QuestionStatus.waiting,
+      ),
+      currentAnswers: Map<String, String>.from(json['currentAnswers'] as Map? ?? {}),
+      defaultTimeLimit: json['defaultTimeLimit'] as int? ?? 30,
     );
   }
 
@@ -76,6 +94,9 @@ class Room {
       'createdAt': Timestamp.fromDate(createdAt),
       'gameStarted': gameStarted,
       'players': players.map((key, value) => MapEntry(key, value.toJson())),
+      'questionStatus': questionStatus.toString().split('.').last,
+      'currentAnswers': currentAnswers,
+      'defaultTimeLimit': defaultTimeLimit,
     };
   }
 
@@ -104,6 +125,9 @@ class Room {
     DateTime? createdAt,
     bool? gameStarted,
     Map<String, PlayerInfo>? players,
+    QuestionStatus? questionStatus,
+    Map<String, String>? currentAnswers,
+    int? defaultTimeLimit,
   }) {
     return Room(
       id: id ?? this.id,
@@ -117,6 +141,9 @@ class Room {
       createdAt: createdAt ?? this.createdAt,
       gameStarted: gameStarted ?? this.gameStarted,
       players: players ?? this.players,
+      questionStatus: questionStatus ?? this.questionStatus,
+      currentAnswers: currentAnswers ?? this.currentAnswers,
+      defaultTimeLimit: defaultTimeLimit ?? this.defaultTimeLimit,
     );
   }
 }

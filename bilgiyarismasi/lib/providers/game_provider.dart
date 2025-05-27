@@ -21,6 +21,7 @@ class GameProvider with ChangeNotifier {
   String? _selectedOption;
   Stream<Room?>? _roomStream;
   StreamSubscription<Room?>? _roomSubscription;
+  DateTime? _questionStartTime;
 
   Room? get currentRoom => _currentRoom;
   bool get isLoading => _isLoading;
@@ -35,6 +36,9 @@ class GameProvider with ChangeNotifier {
 
   void updateTimer(int time) {
     _timeRemaining = time;
+    if (_questionStartTime == null) {
+      _questionStartTime = DateTime.now();
+    }
     notifyListeners();
   }
 
@@ -179,6 +183,12 @@ class GameProvider with ChangeNotifier {
     if (_currentRoom == null) return;
 
     try {
+      // Ensure we have a valid question index
+      if (_currentRoom!.currentQuestionIndex < 0 || 
+          _currentRoom!.currentQuestionIndex >= _currentRoom!.questions.length) {
+        throw Exception('Geçersiz soru indeksi');
+      }
+
       _selectedOption = option;
       _hasAnswered = true;
       notifyListeners();
@@ -186,26 +196,60 @@ class GameProvider with ChangeNotifier {
       final userId = _authService.currentUser?.uid;
       if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
 
-      final currentQuestion =
-          _currentRoom!.questions[_currentRoom!.currentQuestionIndex];
+      final currentQuestion = _currentRoom!.questions[_currentRoom!.currentQuestionIndex];
       final isCorrect = option == currentQuestion.correctAnswer;
-
-      // Calculate score based on remaining time
+      
+      // Calculate time taken to answer
+      int timeTaken = 0;
       int score = 0;
-      if (isCorrect) {
-        // Base score is 1000, scaled by remaining time percentage
-        score = (10 * (_timeRemaining / 30)).round();
+      
+      if (isCorrect && _questionStartTime != null) {
+        // Calculate time taken in seconds
+        timeTaken = DateTime.now().difference(_questionStartTime!).inSeconds;
+        final maxTime = _currentRoom!.defaultTimeLimit;
+        
+        // Calculate time bonus based on how quickly they answered
+        // The faster they answer, the higher the bonus
+        final timeBonus = (5 * (1 - (timeTaken / maxTime))).round();
+        score = 10 + timeBonus;
+        
+        // Ensure minimum score is base score
+        score = score < 10 ? 10 : score;
       }
 
+      // Submit answer with the calculated score
       await _firestoreService.submitAnswer(
         _currentRoom!.id,
         userId,
         _currentRoom!.currentQuestionIndex,
         option,
         isCorrect,
-        _timeRemaining,
+        timeTaken,
         score,
       );
+
+      // Update the score immediately in the local state
+      if (isCorrect) {
+        final currentScore = _currentRoom!.scores[userId] ?? 0;
+        _currentRoom = _currentRoom!.copyWith(
+          scores: {
+            ..._currentRoom!.scores,
+            userId: currentScore + score,
+          },
+        );
+        notifyListeners();
+      }
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateQuestionStatus(QuestionStatus status) async {
+    if (_currentRoom == null) return;
+
+    try {
+      await _firestoreService.updateQuestionStatus(_currentRoom!.id, status);
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -216,18 +260,29 @@ class GameProvider with ChangeNotifier {
     if (_currentRoom == null) return;
 
     try {
-      final nextIndex = _currentRoom!.currentQuestionIndex + 1;
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
 
+      final nextIndex = _currentRoom!.currentQuestionIndex + 1;
+      
+      // Check if we've reached the end of the quiz
       if (nextIndex >= _currentRoom!.questions.length) {
         // Game is finished
         await _firestoreService.endGame(_currentRoom!.id);
-      } else {
-        await _firestoreService.moveToNextQuestion(_currentRoom!.id);
+        notifyListeners();
+        return;
       }
 
+      // Ensure the next index is valid
+      if (nextIndex < 0 || nextIndex >= _currentRoom!.questions.length) {
+        throw Exception('Geçersiz soru indeksi');
+      }
+
+      await _firestoreService.moveToNextQuestion(_currentRoom!.id, userId);
       _selectedOption = null;
       _hasAnswered = false;
-      _timeRemaining = 30;
+      _timeRemaining = _currentRoom!.defaultTimeLimit;
+      _questionStartTime = null; // Reset question start time
       notifyListeners();
     } catch (e) {
       _error = e.toString();
@@ -243,5 +298,33 @@ class GameProvider with ChangeNotifier {
     _selectedOption = null;
     _hasAnswered = false;
     notifyListeners();
+  }
+
+  Future<void> updateScore(int score) async {
+    if (_currentRoom == null) return;
+
+    try {
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) return;
+
+      // Get current score
+      final currentScore = _currentRoom!.scores[userId] ?? 0;
+      
+      // Update score in Firestore
+      await _firestoreService.updateScore(_currentRoom!.id, userId, currentScore + score);
+      
+      // Update local state
+      _currentRoom = _currentRoom!.copyWith(
+        scores: {
+          ..._currentRoom!.scores,
+          userId: currentScore + score,
+        },
+      );
+      
+      notifyListeners();
+    } catch (e) {
+      _error = 'Puan güncellenirken bir hata oluştu: $e';
+      notifyListeners();
+    }
   }
 }

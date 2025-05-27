@@ -109,11 +109,11 @@ class RoomService {
   }
 
   // Move to next question
-  Future<void> moveToNextQuestion(String roomId) async {
+  Future<void> moveToNextQuestion(String roomId, String userId) async {
     try {
-      await _firestoreService.moveToNextQuestion(roomId);
+      await _firestoreService.moveToNextQuestion(roomId, userId);
     } catch (e) {
-      throw Exception('Sonraki soruya geçilirken bir hata oluştu: $e');
+      throw Exception('Sonraki soruya geçilemedi: $e');
     }
   }
 

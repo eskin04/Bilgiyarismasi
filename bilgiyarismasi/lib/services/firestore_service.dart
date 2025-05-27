@@ -208,8 +208,9 @@ class FirestoreService {
         throw Exception('Oyun devam etmiyor');
       }
 
-      // Store answer details
+      // Store answer details with timestamp
       final answerRef = roomRef.collection('answers').doc('${userId}_$questionIndex');
+      final now = FieldValue.serverTimestamp();
       transaction.set(answerRef, {
         'userId': userId,
         'questionIndex': questionIndex,
@@ -217,15 +218,21 @@ class FirestoreService {
         'isCorrect': isCorrect,
         'responseTime': responseTime,
         'score': score,
-        'timestamp': FieldValue.serverTimestamp(),
+        'timestamp': now,
       });
 
-      // Update player's score
-      final currentScore = room.scores[userId] ?? 0;
-      final newScore = currentScore + score;
+      // Update current answers
+      final updatedAnswers = {...room.currentAnswers, userId: selectedOption};
+      
+      // Check if both players have answered
+      final bothAnswered = room.guestId != null && 
+          updatedAnswers.containsKey(room.hostId) && 
+          updatedAnswers.containsKey(room.guestId);
 
+      // Update room with new answer and status
       final updatedRoom = room.copyWith(
-        scores: {...room.scores, userId: newScore},
+        currentAnswers: updatedAnswers,
+        questionStatus: bothAnswered ? QuestionStatus.feedback : QuestionStatus.waiting,
       );
 
       transaction.update(roomRef, updatedRoom.toJson());
@@ -252,7 +259,7 @@ class FirestoreService {
     });
   }
 
-  Future<void> moveToNextQuestion(String roomId) async {
+  Future<void> moveToNextQuestion(String roomId, String userId) async {
     await _firestore.runTransaction((transaction) async {
       final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await transaction.get(roomRef);
@@ -264,12 +271,24 @@ class FirestoreService {
         throw Exception('Oyun devam etmiyor');
       }
 
+      // Only host can move to next question
+      if (room.hostId != userId) {
+        throw Exception('Sadece oda sahibi sonraki soruya geçebilir');
+      }
+
+      // Can only move to next question if in feedback state
+      if (room.questionStatus != QuestionStatus.feedback) {
+        throw Exception('Henüz sonraki soruya geçilemez');
+      }
+
       final nextQuestionIndex = room.currentQuestionIndex + 1;
       final isLastQuestion = nextQuestionIndex >= room.questions.length;
 
       final updatedRoom = room.copyWith(
         currentQuestionIndex: nextQuestionIndex,
         status: isLastQuestion ? RoomStatus.finished : RoomStatus.playing,
+        questionStatus: QuestionStatus.waiting,
+        currentAnswers: {},
       );
 
       transaction.update(roomRef, updatedRoom.toJson());
@@ -385,6 +404,45 @@ class FirestoreService {
       final updatedRoom = room.copyWith(
         players: {...room.players, userId: updatedPlayerInfo},
       );
+
+      transaction.update(roomRef, updatedRoom.toJson());
+    });
+  }
+
+  Future<void> updateQuestionStatus(String roomId, QuestionStatus status) async {
+    await _firestore.runTransaction((transaction) async {
+      final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
+      final doc = await transaction.get(roomRef);
+      
+      if (!doc.exists) throw Exception('Oda bulunamadı');
+
+      final room = Room.fromJson(doc.data()!);
+      if (room.status != RoomStatus.playing) {
+        throw Exception('Oyun devam etmiyor');
+      }
+
+      final updatedRoom = room.copyWith(
+        questionStatus: status,
+      );
+
+      transaction.update(roomRef, updatedRoom.toJson());
+    });
+  }
+
+  Future<void> updateScore(String roomId, String userId, int newScore) async {
+    await _firestore.runTransaction((transaction) async {
+      final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
+      final doc = await transaction.get(roomRef);
+      
+      if (!doc.exists) throw Exception('Oda bulunamadı');
+
+      final room = Room.fromJson(doc.data()!);
+      if (room.status != RoomStatus.playing) {
+        throw Exception('Oyun devam etmiyor');
+      }
+
+      final updatedScores = {...room.scores, userId: newScore};
+      final updatedRoom = room.copyWith(scores: updatedScores);
 
       transaction.update(roomRef, updatedRoom.toJson());
     });
