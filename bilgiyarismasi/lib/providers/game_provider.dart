@@ -12,7 +12,7 @@ class GameProvider with ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
   final GeminiService _geminiService = GeminiService();
   final AuthService _authService = AuthService();
-  
+
   Room? _currentRoom;
   bool _isLoading = false;
   String? _error;
@@ -56,7 +56,7 @@ class GameProvider with ChangeNotifier {
         category: category,
         count: 10,
       );
-      
+
       // Create room in Firestore
       final roomId = await _firestoreService.createRoom(
         hostId: userId,
@@ -101,10 +101,7 @@ class GameProvider with ChangeNotifier {
       final room = await _firestoreService.joinRoom(
         roomId,
         userId,
-        PlayerInfo(
-          username: userInfo.username,
-          avatarUrl: userInfo.avatarUrl,
-        ),
+        PlayerInfo(username: userInfo.username, avatarUrl: userInfo.avatarUrl),
       );
 
       if (room != null) {
@@ -189,11 +186,25 @@ class GameProvider with ChangeNotifier {
       final userId = _authService.currentUser?.uid;
       if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
 
+      final currentQuestion =
+          _currentRoom!.questions[_currentRoom!.currentQuestionIndex];
+      final isCorrect = option == currentQuestion.correctAnswer;
+
+      // Calculate score based on remaining time
+      int score = 0;
+      if (isCorrect) {
+        // Base score is 1000, scaled by remaining time percentage
+        score = (10 * (_timeRemaining / 30)).round();
+      }
+
       await _firestoreService.submitAnswer(
         _currentRoom!.id,
         userId,
         _currentRoom!.currentQuestionIndex,
         option,
+        isCorrect,
+        _timeRemaining,
+        score,
       );
     } catch (e) {
       _error = e.toString();
@@ -205,7 +216,15 @@ class GameProvider with ChangeNotifier {
     if (_currentRoom == null) return;
 
     try {
-      await _firestoreService.moveToNextQuestion(_currentRoom!.id);
+      final nextIndex = _currentRoom!.currentQuestionIndex + 1;
+
+      if (nextIndex >= _currentRoom!.questions.length) {
+        // Game is finished
+        await _firestoreService.endGame(_currentRoom!.id);
+      } else {
+        await _firestoreService.moveToNextQuestion(_currentRoom!.id);
+      }
+
       _selectedOption = null;
       _hasAnswered = false;
       _timeRemaining = 30;
@@ -225,4 +244,4 @@ class GameProvider with ChangeNotifier {
     _hasAnswered = false;
     notifyListeners();
   }
-} 
+}

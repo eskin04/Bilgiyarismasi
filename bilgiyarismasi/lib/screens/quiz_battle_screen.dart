@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../models/room.dart';
+import '../models/question.dart';
 import '../services/auth_service.dart';
 import 'result_screen.dart';
 import '../widgets/room_lobby.dart';
@@ -19,6 +20,8 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
   final AuthService _authService = AuthService();
   Timer? _timer;
   bool _showAnswers = false;
+  String? _selectedOption;
+  bool _isAnswerLocked = false;
 
   @override
   void initState() {
@@ -54,20 +57,34 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
 
   Future<void> _handleTimeUp() async {
     final gameProvider = context.read<GameProvider>();
-    setState(() => _showAnswers = true);
+    setState(() {
+      _showAnswers = true;
+      _isAnswerLocked = true;
+    });
 
     // Wait for 3 seconds to show answers
     await Future.delayed(const Duration(seconds: 3));
 
     if (mounted) {
-      setState(() => _showAnswers = false);
+      setState(() {
+        _showAnswers = false;
+        _isAnswerLocked = false;
+        _selectedOption = null;
+      });
       await gameProvider.moveToNextQuestion();
       _startTimer();
     }
   }
 
   Future<void> _handleAnswer(String option) async {
+    if (_isAnswerLocked) return;
+
     final gameProvider = context.read<GameProvider>();
+    setState(() {
+      _selectedOption = option;
+      _isAnswerLocked = true;
+    });
+
     await gameProvider.submitAnswer(option);
     setState(() => _showAnswers = true);
 
@@ -75,10 +92,116 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
     await Future.delayed(const Duration(seconds: 3));
 
     if (mounted) {
-      setState(() => _showAnswers = false);
+      setState(() {
+        _showAnswers = false;
+        _isAnswerLocked = false;
+        _selectedOption = null;
+      });
       await gameProvider.moveToNextQuestion();
       _startTimer();
     }
+  }
+
+  Widget _buildPlayerAvatar(
+    PlayerInfo? playerInfo,
+    int score,
+    bool isCurrentUser,
+  ) {
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 40,
+          backgroundImage: AssetImage(playerInfo!.avatarUrl) as ImageProvider,
+          child:
+              playerInfo?.avatarUrl == null
+                  ? const Icon(Icons.person, size: 40)
+                  : null,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          playerInfo?.username ?? 'Bekleniyor',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Puan: $score',
+          style: TextStyle(
+            fontSize: 18,
+            color: isCurrentUser ? Colors.blue : Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimer(int timeRemaining) {
+    return Column(
+      children: [
+        Text(
+          'Kalan Süre: ${timeRemaining}s',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        LinearProgressIndicator(
+          value: timeRemaining / 30,
+          backgroundColor: Colors.grey[300],
+          valueColor: AlwaysStoppedAnimation<Color>(
+            timeRemaining > 10 ? Colors.green : Colors.red,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuestion(Question question) {
+    return Column(
+      children: [
+        Text(
+          question.text,
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 32),
+        ...question.options.asMap().entries.map((entry) {
+          final index = entry.key;
+          final option = entry.value;
+          final isSelected = _selectedOption == option;
+          final isCorrect = _showAnswers && option == question.correctAnswer;
+          final isWrong =
+              _showAnswers && isSelected && option != question.correctAnswer;
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: ElevatedButton(
+              onPressed: _isAnswerLocked ? null : () => _handleAnswer(option),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    _showAnswers
+                        ? isCorrect
+                            ? Colors.green
+                            : isWrong
+                            ? Colors.red
+                            : null
+                        : isSelected
+                        ? Colors.blue
+                        : null,
+                minimumSize: const Size(double.infinity, 50),
+              ),
+              child: Text(
+                '${String.fromCharCode(65 + index)}. $option',
+                style: TextStyle(
+                  color:
+                      _showAnswers && (isCorrect || isWrong)
+                          ? Colors.white
+                          : null,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ],
+    );
   }
 
   @override
@@ -87,17 +210,13 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
       builder: (context, gameProvider, child) {
         if (gameProvider.isLoading) {
           return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
 
         if (gameProvider.error != null) {
           return Scaffold(
-            appBar: AppBar(
-              title: const Text('Hata'),
-            ),
+            appBar: AppBar(title: const Text('Hata')),
             body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -131,9 +250,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
 
   Widget _buildRoomSelection(BuildContext context, GameProvider gameProvider) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Çevrimiçi Oyun'),
-      ),
+      appBar: AppBar(title: const Text('Çevrimiçi Oyun')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -146,10 +263,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
               child: const Text('Yeni Oda Oluştur'),
             ),
             const SizedBox(height: 32),
-            const Text(
-              'veya',
-              style: TextStyle(fontSize: 16),
-            ),
+            const Text('veya', style: TextStyle(fontSize: 16)),
             const SizedBox(height: 32),
             TextField(
               controller: _roomIdController,
@@ -175,14 +289,18 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
 
   Widget _buildGameScreen(BuildContext context, GameProvider gameProvider) {
     final room = gameProvider.currentRoom!;
-    
+
     if (!room.gameStarted) {
       return const RoomLobby();
     }
 
     final currentUserId = _authService.currentUser?.uid;
     final isHost = currentUserId == room.hostId;
+    final currentPlayerInfo = room.players[currentUserId];
     final opponentId = isHost ? room.guestId : room.hostId;
+    final opponentInfo = room.players[opponentId];
+
+    final currentQuestion = room.questions[room.currentQuestionIndex];
 
     return Scaffold(
       appBar: AppBar(
@@ -200,66 +318,35 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Scores
+            // Player Avatars and Scores
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildPlayerScore(
-                  'Siz',
+                _buildPlayerAvatar(
+                  currentPlayerInfo,
                   room.scores[currentUserId] ?? 0,
-                  isHost ? room.hostScore : room.guestScore,
+                  true,
                 ),
-                _buildPlayerScore(
-                  'Rakip',
+                _buildPlayerAvatar(
+                  opponentInfo,
                   room.scores[opponentId] ?? 0,
-                  isHost ? room.guestScore : room.hostScore,
+                  false,
                 ),
               ],
             ),
             const SizedBox(height: 32),
-            // Room Status
-            Text(
-              'Oda Durumu: ${_getRoomStatusText(room.status)}',
-              style: const TextStyle(fontSize: 18),
-            ),
+            // Timer
+            _buildTimer(gameProvider.timeRemaining),
             const SizedBox(height: 32),
-            // Room ID
-            Text(
-              'Oda ID: ${room.id}',
-              style: const TextStyle(fontSize: 16),
+            // Question and Options
+            Expanded(
+              child: SingleChildScrollView(
+                child: _buildQuestion(currentQuestion),
+              ),
             ),
           ],
         ),
       ),
     );
   }
-
-  Widget _buildPlayerScore(String label, int score, int totalScore) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Puan: $score',
-          style: const TextStyle(fontSize: 24),
-        ),
-      ],
-    );
-  }
-
-  String _getRoomStatusText(RoomStatus status) {
-    switch (status) {
-      case RoomStatus.waiting:
-        return 'Rakip Bekleniyor';
-      case RoomStatus.playing:
-        return 'Oyun Devam Ediyor';
-      case RoomStatus.finished:
-        return 'Oyun Bitti';
-      case RoomStatus.cancelled:
-        return 'Oyun İptal Edildi';
-    }
-  }
-} 
+}

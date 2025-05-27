@@ -188,7 +188,15 @@ class FirestoreService {
         });
   }
 
-  Future<void> submitAnswer(String roomId, String userId, int questionIndex, String selectedOption) async {
+  Future<void> submitAnswer(
+    String roomId,
+    String userId,
+    int questionIndex,
+    String selectedOption,
+    bool isCorrect,
+    int responseTime,
+    int score,
+  ) async {
     await _firestore.runTransaction((transaction) async {
       final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await transaction.get(roomRef);
@@ -200,13 +208,44 @@ class FirestoreService {
         throw Exception('Oyun devam etmiyor');
       }
 
-      final currentQuestion = room.questions[questionIndex];
-      final isCorrect = selectedOption == currentQuestion.correctAnswer;
+      // Store answer details
+      final answerRef = roomRef.collection('answers').doc('${userId}_$questionIndex');
+      transaction.set(answerRef, {
+        'userId': userId,
+        'questionIndex': questionIndex,
+        'selectedOption': selectedOption,
+        'isCorrect': isCorrect,
+        'responseTime': responseTime,
+        'score': score,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      // Update player's score
       final currentScore = room.scores[userId] ?? 0;
-      final newScore = isCorrect ? currentScore + 1 : currentScore;
+      final newScore = currentScore + score;
 
       final updatedRoom = room.copyWith(
         scores: {...room.scores, userId: newScore},
+      );
+
+      transaction.update(roomRef, updatedRoom.toJson());
+    });
+  }
+
+  Future<void> endGame(String roomId) async {
+    await _firestore.runTransaction((transaction) async {
+      final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
+      final doc = await transaction.get(roomRef);
+      
+      if (!doc.exists) throw Exception('Oda bulunamadı');
+
+      final room = Room.fromJson(doc.data()!);
+      if (room.status != RoomStatus.playing) {
+        throw Exception('Oyun devam etmiyor');
+      }
+
+      final updatedRoom = room.copyWith(
+        status: RoomStatus.finished,
       );
 
       transaction.update(roomRef, updatedRoom.toJson());

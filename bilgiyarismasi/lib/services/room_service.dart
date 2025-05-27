@@ -82,12 +82,27 @@ class RoomService {
   }
 
   // Submit answer
-  Future<void> submitAnswer(String roomId, int questionIndex, String selectedOption) async {
+  Future<void> submitAnswer(
+    String roomId,
+    int questionIndex,
+    String selectedOption,
+    bool isCorrect,
+    int responseTime,
+    int score,
+  ) async {
     try {
       final userId = _authService.currentUser?.uid;
       if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
 
-      await _firestoreService.submitAnswer(roomId, userId, questionIndex, selectedOption);
+      await _firestoreService.submitAnswer(
+        roomId,
+        userId,
+        questionIndex,
+        selectedOption,
+        isCorrect,
+        responseTime,
+        score,
+      );
     } catch (e) {
       throw Exception('Cevap gönderilirken bir hata oluştu: $e');
     }
