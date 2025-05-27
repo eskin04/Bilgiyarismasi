@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../services/auth_service.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -13,6 +13,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -25,27 +26,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await _authService.login(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-    } on FirebaseAuthException catch (e) {
-      String errorMessage;
-      switch (e.code) {
-        case 'user-not-found':
-          errorMessage = 'Bu e-posta adresi ile kayıtlı kullanıcı bulunamadı';
-          break;
-        case 'wrong-password':
-          errorMessage = 'Hatalı şifre';
-          break;
-        case 'invalid-email':
-          errorMessage = 'Geçersiz e-posta adresi';
-          break;
-        default:
-          errorMessage = e.message ?? 'Bir hata oluştu';
-      }
+    } catch (e) {
       setState(() {
-        _errorMessage = errorMessage;
+        _errorMessage = e.toString();
       });
     } finally {
       if (mounted) {

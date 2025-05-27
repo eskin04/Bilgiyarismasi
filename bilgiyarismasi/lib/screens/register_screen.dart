@@ -1,5 +1,5 @@
- import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -13,6 +13,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _authService = AuthService();
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -25,27 +27,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      print('Kayıt işlemi başlıyor...');
+      print('Email: ${_emailController.text}');
+      print('Username: ${_usernameController.text}');
+
+      final userModel = await _authService.register(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
+        username: _usernameController.text.trim(),
+        avatarUrl: 'assets/avatars/default_avatar.png',
       );
-    } on FirebaseAuthException catch (e) {
-      String errorMessage;
-      switch (e.code) {
-        case 'email-already-in-use':
-          errorMessage = 'Bu e-posta adresi zaten kullanımda';
-          break;
-        case 'invalid-email':
-          errorMessage = 'Geçersiz e-posta adresi';
-          break;
-        case 'weak-password':
-          errorMessage = 'Şifre çok zayıf';
-          break;
-        default:
-          errorMessage = e.message ?? 'Bir hata oluştu';
+
+      print('Kayıt işlemi başarılı! Kullanıcı: ${userModel.username}');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Kayıt başarılı! Giriş yapabilirsiniz.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
       }
+    } catch (e) {
+      print('Kayıt hatası: $e');
       setState(() {
-        _errorMessage = errorMessage;
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
       });
     } finally {
       if (mounted) {
@@ -61,6 +68,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
@@ -78,13 +86,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (_errorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
+                Container(
+                  padding: const EdgeInsets.all(8.0),
+                  margin: const EdgeInsets.only(bottom: 16.0),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
                   child: Text(
                     _errorMessage!,
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(color: Colors.red.shade900),
                   ),
                 ),
+              TextFormField(
+                controller: _usernameController,
+                decoration: const InputDecoration(
+                  labelText: 'Kullanıcı Adı',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Lütfen kullanıcı adınızı girin';
+                  }
+                  if (value.length < 3) {
+                    return 'Kullanıcı adı en az 3 karakter olmalıdır';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(

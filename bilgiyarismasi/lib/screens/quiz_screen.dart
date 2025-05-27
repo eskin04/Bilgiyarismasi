@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/quiz_provider.dart';
+import '../services/auth_service.dart';
+import 'profile_screen.dart';
 
 class QuizScreen extends StatelessWidget {
   final List<String> categories = [
@@ -10,13 +11,15 @@ class QuizScreen extends StatelessWidget {
     'Sanat',
     'Spor',
     'Coğrafya',
+    'Genel Kültür',
   ];
 
   QuizScreen({super.key});
 
   Future<void> _signOut(BuildContext context) async {
     try {
-      await FirebaseAuth.instance.signOut();
+      final authService = AuthService();
+      await authService.logout();
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -35,6 +38,17 @@ class QuizScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Bilgi Yarışması'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProfileScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => _signOut(context),
