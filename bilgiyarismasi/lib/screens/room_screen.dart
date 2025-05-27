@@ -37,16 +37,14 @@ class _RoomScreenState extends State<RoomScreen> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => const QuizBattleScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const QuizBattleScreen()),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) {
@@ -57,9 +55,9 @@ class _RoomScreenState extends State<RoomScreen> {
 
   Future<void> _joinRoom() async {
     if (_roomIdController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a room ID')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter a room ID')));
       return;
     }
 
@@ -68,16 +66,14 @@ class _RoomScreenState extends State<RoomScreen> {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => const QuizBattleScreen(),
-          ),
+          MaterialPageRoute(builder: (context) => const QuizBattleScreen()),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
   }
@@ -85,9 +81,7 @@ class _RoomScreenState extends State<RoomScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Quiz Battle'),
-      ),
+      appBar: AppBar(title: const Text('Quiz Battle')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -101,20 +95,18 @@ class _RoomScreenState extends State<RoomScreen> {
                   // Create Room Section
                   const Text(
                     'Create a Room',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     value: _selectedCategory,
-                    items: _categories.map((category) {
-                      return DropdownMenuItem(
-                        value: category,
-                        child: Text(category),
-                      );
-                    }).toList(),
+                    items:
+                        _categories.map((category) {
+                          return DropdownMenuItem(
+                            value: category,
+                            child: Text(category),
+                          );
+                        }).toList(),
                     onChanged: (value) {
                       if (value != null) {
                         setState(() => _selectedCategory = value);
@@ -137,10 +129,7 @@ class _RoomScreenState extends State<RoomScreen> {
                   // Join Room Section
                   const Text(
                     'Join a Room',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
                   TextField(
@@ -165,4 +154,4 @@ class _RoomScreenState extends State<RoomScreen> {
       ),
     );
   }
-} 
+}

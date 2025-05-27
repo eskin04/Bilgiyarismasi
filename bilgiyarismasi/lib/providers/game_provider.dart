@@ -5,11 +5,13 @@ import '../models/room.dart';
 import '../models/question.dart';
 import '../services/firestore_service.dart';
 import '../services/gemini_service.dart';
+import '../services/auth_service.dart';
 import 'dart:developer' as developer;
 
 class GameProvider with ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
   final GeminiService _geminiService = GeminiService();
+  final AuthService _authService = AuthService();
   
   Room? _currentRoom;
   bool _isLoading = false;
@@ -18,6 +20,7 @@ class GameProvider with ChangeNotifier {
   bool _hasAnswered = false;
   String? _selectedOption;
   Stream<Room?>? _roomStream;
+  StreamSubscription<Room?>? _roomSubscription;
 
   Room? get currentRoom => _currentRoom;
   bool get isLoading => _isLoading;
@@ -26,6 +29,9 @@ class GameProvider with ChangeNotifier {
   bool get hasAnswered => _hasAnswered;
   String? get selectedOption => _selectedOption;
   Stream<Room?>? get roomStream => _roomStream;
+  bool get isHost => _currentRoom?.hostId == _authService.currentUser?.uid;
+  bool get canStartGame => _currentRoom?.canStartGame ?? false;
+  String? get currentUserId => _authService.currentUser?.uid;
 
   void updateTimer(int time) {
     _timeRemaining = time;
@@ -38,6 +44,13 @@ class GameProvider with ChangeNotifier {
       _error = null;
       notifyListeners();
 
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
+
+      // Get user info
+      final userInfo = await _authService.getUser(userId);
+      if (userInfo == null) throw Exception('Kullanıcı bilgileri alınamadı');
+
       // Generate questions
       final questions = await _geminiService.generateQuestions(
         category: category,
@@ -46,8 +59,14 @@ class GameProvider with ChangeNotifier {
       
       // Create room in Firestore
       final roomId = await _firestoreService.createRoom(
+        hostId: userId,
         category: category,
         questions: questions,
+        hostInfo: PlayerInfo(
+          username: userInfo.username,
+          avatarUrl: userInfo.avatarUrl,
+          isReady: false,
+        ),
       );
 
       // Get the created room
@@ -72,7 +91,22 @@ class GameProvider with ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      final room = await _firestoreService.joinRoom(roomId);
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
+
+      // Get user info
+      final userInfo = await _authService.getUser(userId);
+      if (userInfo == null) throw Exception('Kullanıcı bilgileri alınamadı');
+
+      final room = await _firestoreService.joinRoom(
+        roomId,
+        userId,
+        PlayerInfo(
+          username: userInfo.username,
+          avatarUrl: userInfo.avatarUrl,
+        ),
+      );
+
       if (room != null) {
         _currentRoom = room;
         startListening(roomId);
@@ -89,7 +123,8 @@ class GameProvider with ChangeNotifier {
 
   void startListening(String roomId) {
     _roomStream = _firestoreService.watchRoom(roomId);
-    _roomStream?.listen(
+    _roomSubscription?.cancel();
+    _roomSubscription = _roomStream?.listen(
       (room) {
         if (room != null) {
           _currentRoom = room;
@@ -103,6 +138,46 @@ class GameProvider with ChangeNotifier {
     );
   }
 
+  Future<void> startGame() async {
+    if (_currentRoom == null || !isHost || !canStartGame) return;
+
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      await _firestoreService.startGame(_currentRoom!.id);
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> setPlayerReady(bool isReady) async {
+    if (_currentRoom == null) return;
+
+    try {
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
+
+      await _firestoreService.updatePlayerReady(
+        _currentRoom!.id,
+        userId,
+        isReady,
+      );
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _roomSubscription?.cancel();
+    super.dispose();
+  }
+
   Future<void> submitAnswer(String option) async {
     if (_currentRoom == null) return;
 
@@ -111,8 +186,12 @@ class GameProvider with ChangeNotifier {
       _hasAnswered = true;
       notifyListeners();
 
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
+
       await _firestoreService.submitAnswer(
         _currentRoom!.id,
+        userId,
         _currentRoom!.currentQuestionIndex,
         option,
       );

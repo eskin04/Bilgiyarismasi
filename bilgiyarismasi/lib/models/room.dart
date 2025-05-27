@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'question.dart';
+import 'user.dart';
 
 enum RoomStatus {
   waiting,    // Waiting for opponent to join
@@ -18,6 +19,8 @@ class Room {
   final List<Question> questions;
   final Map<String, int> scores;
   final DateTime createdAt;
+  final bool gameStarted;
+  final Map<String, PlayerInfo> players;
 
   Room({
     required this.id,
@@ -29,6 +32,8 @@ class Room {
     required this.questions,
     required this.scores,
     required this.createdAt,
+    this.gameStarted = false,
+    required this.players,
   });
 
   factory Room.fromJson(Map<String, dynamic> json) {
@@ -47,6 +52,14 @@ class Room {
           .toList(),
       scores: Map<String, int>.from(json['scores'] as Map),
       createdAt: (json['createdAt'] as Timestamp).toDate(),
+      gameStarted: json['gameStarted'] as bool? ?? false,
+      players: (json['players'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(
+              key,
+              PlayerInfo.fromJson(value as Map<String, dynamic>),
+            ),
+          ) ??
+          {},
     );
   }
 
@@ -61,6 +74,8 @@ class Room {
       'questions': questions.map((q) => q.toJson()).toList(),
       'scores': scores,
       'createdAt': Timestamp.fromDate(createdAt),
+      'gameStarted': gameStarted,
+      'players': players.map((key, value) => MapEntry(key, value.toJson())),
     };
   }
 
@@ -69,9 +84,13 @@ class Room {
   bool get isPlaying => status == RoomStatus.playing;
   bool get isFinished => status == RoomStatus.finished;
   bool get isCancelled => status == RoomStatus.cancelled;
+  bool get canStartGame => isFull && !gameStarted;
 
   int get hostScore => scores[hostId] ?? 0;
   int get guestScore => guestId != null ? scores[guestId!] ?? 0 : 0;
+
+  PlayerInfo? get hostInfo => players[hostId];
+  PlayerInfo? get guestInfo => guestId != null ? players[guestId!] : null;
 
   Room copyWith({
     String? id,
@@ -83,6 +102,8 @@ class Room {
     List<Question>? questions,
     Map<String, int>? scores,
     DateTime? createdAt,
+    bool? gameStarted,
+    Map<String, PlayerInfo>? players,
   }) {
     return Room(
       id: id ?? this.id,
@@ -94,6 +115,48 @@ class Room {
       questions: questions ?? this.questions,
       scores: scores ?? this.scores,
       createdAt: createdAt ?? this.createdAt,
+      gameStarted: gameStarted ?? this.gameStarted,
+      players: players ?? this.players,
+    );
+  }
+}
+
+class PlayerInfo {
+  final String username;
+  final String avatarUrl;
+  final bool isReady;
+
+  PlayerInfo({
+    required this.username,
+    required this.avatarUrl,
+    this.isReady = false,
+  });
+
+  factory PlayerInfo.fromJson(Map<String, dynamic> json) {
+    return PlayerInfo(
+      username: json['username'] as String,
+      avatarUrl: json['avatarUrl'] as String,
+      isReady: json['isReady'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'username': username,
+      'avatarUrl': avatarUrl,
+      'isReady': isReady,
+    };
+  }
+
+  PlayerInfo copyWith({
+    String? username,
+    String? avatarUrl,
+    bool? isReady,
+  }) {
+    return PlayerInfo(
+      username: username ?? this.username,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      isReady: isReady ?? this.isReady,
     );
   }
 }

@@ -5,6 +5,7 @@ import '../providers/game_provider.dart';
 import '../models/room.dart';
 import '../services/auth_service.dart';
 import 'result_screen.dart';
+import '../widgets/room_lobby.dart';
 
 class QuizBattleScreen extends StatefulWidget {
   const QuizBattleScreen({super.key});
@@ -174,6 +175,11 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
 
   Widget _buildGameScreen(BuildContext context, GameProvider gameProvider) {
     final room = gameProvider.currentRoom!;
+    
+    if (!room.gameStarted) {
+      return const RoomLobby();
+    }
+
     final currentUserId = _authService.currentUser?.uid;
     final isHost = currentUserId == room.hostId;
     final opponentId = isHost ? room.guestId : room.hostId;
