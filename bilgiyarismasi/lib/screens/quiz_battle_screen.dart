@@ -354,6 +354,18 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
   }
 
   Widget _buildRoomSelection(BuildContext context, GameProvider gameProvider) {
+    String selectedCategory = 'Genel Kültür';
+    final List<String> categories = [
+      'Genel Kültür',
+      'Tarih',
+      'Coğrafya',
+      'Bilim',
+      'Spor',
+      'Sanat',
+      'Teknoloji',
+      'Eğlence',
+    ];
+
     return Scaffold(
       appBar: AppBar(title: const Text('Çevrimiçi Oyun')),
       body: Padding(
@@ -361,9 +373,29 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Kategori Seçimi
+            DropdownButtonFormField<String>(
+              value: selectedCategory,
+              decoration: const InputDecoration(
+                labelText: 'Kategori Seçin',
+                border: OutlineInputBorder(),
+              ),
+              items: categories.map((String category) {
+                return DropdownMenuItem<String>(
+                  value: category,
+                  child: Text(category),
+                );
+              }).toList(),
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  selectedCategory = newValue;
+                }
+              },
+            ),
+            const SizedBox(height: 32),
             ElevatedButton(
               onPressed: () async {
-                await gameProvider.createRoom('Genel Kültür');
+                await gameProvider.createRoom(selectedCategory);
               },
               child: const Text('Yeni Oda Oluştur'),
             ),

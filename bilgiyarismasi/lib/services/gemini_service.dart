@@ -21,18 +21,28 @@ class GeminiService {
   }) async {
     try {
       final prompt = '''
-You are a quiz question generator. Generate $count multiple choice questions about $category.
-Your response must be ONLY a JSON array with this exact format, no other text:
+Sen bir bilgi yarışması soru üreticisisin. Bana $category kategorisinde, $count adet çoktan seçmeli soru üret.
+
+Cevabın sadece aşağıdaki biçimde saf JSON array olmalı, başka hiçbir açıklama veya metin ekleme:
+
 [
   {
-    "text": "Question text",
-    "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correctAnswer": "Correct option",
+    "text": "Soru metni",
+    "options": ["A şıkkı", "B şıkkı", "C şıkkı", "D şıkkı"],
+    "correctAnswer": "Doğru şık",
     "category": "$category"
   }
 ]
 
-Remember: Return ONLY the JSON array, no explanations, no markdown formatting, no additional text.
+Gereksinimler:
+- Sorular Türkçe olmalı.
+- Farklı zorluk seviyelerinde (kolay, orta, zor) dengeli dağılımlı olmalı.
+- Sorular özgün, yaratıcı ve adil olmalı.
+- Cevaplar karışık sıralanmalı.
+- Sorular mantıklı, tutarlı ve genel bilgiye dayalı olmalı.
+
+Sadece geçerli JSON array döndür, ekstra bilgi veya markdown kullanma.
+
 ''';
 
       final content = [Content.text(prompt)];
@@ -45,16 +55,16 @@ Remember: Return ONLY the JSON array, no explanations, no markdown formatting, n
 
       // Extract JSON array from the response
       String jsonText = responseText.trim();
-      
+
       // Find the first '[' and last ']'
       final startIndex = jsonText.indexOf('[');
       final endIndex = jsonText.lastIndexOf(']');
-      
+
       if (startIndex == -1 || endIndex == -1) {
         developer.log('Invalid response: $jsonText');
         throw FormatException('Could not find JSON array in response');
       }
-      
+
       // Extract just the JSON array
       jsonText = jsonText.substring(startIndex, endIndex + 1);
 

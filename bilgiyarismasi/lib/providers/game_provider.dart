@@ -59,7 +59,7 @@ class GameProvider with ChangeNotifier {
       // Generate questions
       final questions = await _geminiService.generateQuestions(
         category: category,
-        count: 1, // Test için 1 soru
+        count: 10, // Test için 1 soru
       );
 
       // Create room in Firestore
@@ -138,13 +138,13 @@ class GameProvider with ChangeNotifier {
             _timeRemaining = room.defaultTimeLimit;
             _questionStartTime = DateTime.now();
             _isAnswerLocked = false;
-            
+
             // If we're in waiting status, ensure buttons are enabled
             if (room.questionStatus == QuestionStatus.waiting) {
               _isAnswerLocked = false;
             }
           }
-          
+
           _currentRoom = room;
           notifyListeners();
         }
@@ -203,14 +203,15 @@ class GameProvider with ChangeNotifier {
       // Eğer oyuncu zaten cevap verdiyse, yeni cevap göndermesine izin verme
       final userId = _authService.currentUser?.uid;
       if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
-      
+
       if (_currentRoom!.currentAnswers.containsKey(userId)) {
         return; // Oyuncu zaten cevap vermiş, işlemi sonlandır
       }
 
       // Ensure we have a valid question index
-      if (_currentRoom!.currentQuestionIndex < 0 || 
-          _currentRoom!.currentQuestionIndex >= _currentRoom!.questions.length) {
+      if (_currentRoom!.currentQuestionIndex < 0 ||
+          _currentRoom!.currentQuestionIndex >=
+              _currentRoom!.questions.length) {
         throw Exception('Geçersiz soru indeksi');
       }
 
@@ -219,23 +220,24 @@ class GameProvider with ChangeNotifier {
       _isAnswerLocked = true; // Cevabı kilitle
       notifyListeners();
 
-      final currentQuestion = _currentRoom!.questions[_currentRoom!.currentQuestionIndex];
+      final currentQuestion =
+          _currentRoom!.questions[_currentRoom!.currentQuestionIndex];
       final isCorrect = option == currentQuestion.correctAnswer;
-      
+
       // Calculate time taken to answer
       int timeTaken = 0;
       int score = 0;
-      
+
       if (isCorrect && _questionStartTime != null) {
         // Calculate time taken in seconds
         timeTaken = DateTime.now().difference(_questionStartTime!).inSeconds;
         final maxTime = _currentRoom!.defaultTimeLimit;
-        
+
         // Calculate time bonus based on how quickly they answered
         // The faster they answer, the higher the bonus
         final timeBonus = (5 * (1 - (timeTaken / maxTime))).round();
         score = 10 + timeBonus;
-        
+
         // Ensure minimum score is base score
         score = score < 10 ? 10 : score;
       }
@@ -255,10 +257,7 @@ class GameProvider with ChangeNotifier {
       if (isCorrect) {
         final currentScore = _currentRoom!.scores[userId] ?? 0;
         _currentRoom = _currentRoom!.copyWith(
-          scores: {
-            ..._currentRoom!.scores,
-            userId: currentScore + score,
-          },
+          scores: {..._currentRoom!.scores, userId: currentScore + score},
         );
         notifyListeners();
       }
@@ -267,10 +266,10 @@ class GameProvider with ChangeNotifier {
       if (_currentRoom!.currentAnswers.length == 2) {
         // Cevap durumunu güncelle
         await updateQuestionStatus(QuestionStatus.feedback);
-        
+
         // 2 saniye bekle
         await Future.delayed(const Duration(seconds: 2));
-        
+
         // Host ise sonraki soruya geç
         if (isHost) {
           await moveToNextQuestion();
@@ -302,7 +301,7 @@ class GameProvider with ChangeNotifier {
       if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
 
       final nextIndex = _currentRoom!.currentQuestionIndex + 1;
-      
+
       // Check if we've reached the end of the quiz
       if (nextIndex >= _currentRoom!.questions.length) {
         // Game is finished
@@ -317,14 +316,14 @@ class GameProvider with ChangeNotifier {
       }
 
       await _firestoreService.moveToNextQuestion(_currentRoom!.id, userId);
-      
+
       // Reset all state variables
       _selectedOption = null;
       _hasAnswered = false;
       _timeRemaining = _currentRoom!.defaultTimeLimit;
       _questionStartTime = DateTime.now();
       _isAnswerLocked = false;
-      
+
       notifyListeners();
     } catch (e) {
       _error = e.toString();
@@ -368,18 +367,19 @@ class GameProvider with ChangeNotifier {
 
       // Get current score
       final currentScore = _currentRoom!.scores[userId] ?? 0;
-      
+
       // Update score in Firestore
-      await _firestoreService.updateScore(_currentRoom!.id, userId, currentScore + score);
-      
+      await _firestoreService.updateScore(
+        _currentRoom!.id,
+        userId,
+        currentScore + score,
+      );
+
       // Update local state
       _currentRoom = _currentRoom!.copyWith(
-        scores: {
-          ..._currentRoom!.scores,
-          userId: currentScore + score,
-        },
+        scores: {..._currentRoom!.scores, userId: currentScore + score},
       );
-      
+
       notifyListeners();
     } catch (e) {
       _error = 'Puan güncellenirken bir hata oluştu: $e';
@@ -395,9 +395,10 @@ class GameProvider with ChangeNotifier {
       if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
 
       // Diğer oyuncunun ID'sini bul
-      final otherPlayerId = userId == _currentRoom!.hostId 
-          ? _currentRoom!.guestId 
-          : _currentRoom!.hostId;
+      final otherPlayerId =
+          userId == _currentRoom!.hostId
+              ? _currentRoom!.guestId
+              : _currentRoom!.hostId;
 
       // Önce diğer oyuncuyu çıkar
       if (otherPlayerId != null) {
@@ -433,14 +434,11 @@ class GameProvider with ChangeNotifier {
       if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
 
       // Yeniden oyna isteği gönder
-      await _firestoreService.updateRoom(
-        _currentRoom!.id,
-        {
-          'rematchRequested': true,
-          'rematchRequestedBy': userId,
-          'status': RoomStatus.waiting.toString(),
-        },
-      );
+      await _firestoreService.updateRoom(_currentRoom!.id, {
+        'rematchRequested': true,
+        'rematchRequestedBy': userId,
+        'status': RoomStatus.waiting.toString(),
+      });
     } catch (e) {
       _error = 'Yeniden oyna isteği gönderilemedi: $e';
       notifyListeners();
@@ -457,39 +455,42 @@ class GameProvider with ChangeNotifier {
       // Yeni soruları getir
       final questions = await _geminiService.generateQuestions(
         category: _currentRoom!.category,
-        count: 1, // Test için 1 soru
+        count: 10, // Test için 1 soru
       );
 
       // Odayı güncelle
-      await _firestoreService.updateRoom(
-        _currentRoom!.id,
-        {
-          'questions': questions.map((q) => q.toJson()).toList(),
-          'currentQuestionIndex': 0,
-          'questionStatus': QuestionStatus.waiting.toString().split('.').last,
-          'scores': {},
-          'currentAnswers': {},
-          'revealedAnswers': {},
-          'rematchRequested': false,
-          'rematchRequestedBy': null,
-          'gameStarted': true,
-          'status': RoomStatus.playing.toString().split('.').last,
-          'players': {
-            ..._currentRoom!.players,
-            _currentRoom!.hostId: _currentRoom!.players[_currentRoom!.hostId]!.copyWith(isReady: true).toJson(),
-            _currentRoom!.guestId!: _currentRoom!.players[_currentRoom!.guestId!]!.copyWith(isReady: true).toJson(),
-          },
-          'questionStartTime': FieldValue.serverTimestamp(),
-          'defaultTimeLimit': 30,
-          'currentAnswers': {},
-          'revealedAnswers': {},
-          'questionStatus': QuestionStatus.waiting.toString().split('.').last,
-          'currentQuestionIndex': 0,
-          'scores': {},
-          'gameStarted': true,
-          'status': RoomStatus.playing.toString().split('.').last,
+      await _firestoreService.updateRoom(_currentRoom!.id, {
+        'questions': questions.map((q) => q.toJson()).toList(),
+        'currentQuestionIndex': 0,
+        'questionStatus': QuestionStatus.waiting.toString().split('.').last,
+        'scores': {},
+        'currentAnswers': {},
+        'revealedAnswers': {},
+        'rematchRequested': false,
+        'rematchRequestedBy': null,
+        'gameStarted': true,
+        'status': RoomStatus.playing.toString().split('.').last,
+        'players': {
+          ..._currentRoom!.players,
+          _currentRoom!.hostId:
+              _currentRoom!.players[_currentRoom!.hostId]!
+                  .copyWith(isReady: true)
+                  .toJson(),
+          _currentRoom!.guestId!:
+              _currentRoom!.players[_currentRoom!.guestId!]!
+                  .copyWith(isReady: true)
+                  .toJson(),
         },
-      );
+        'questionStartTime': FieldValue.serverTimestamp(),
+        'defaultTimeLimit': 30,
+        'currentAnswers': {},
+        'revealedAnswers': {},
+        'questionStatus': QuestionStatus.waiting.toString().split('.').last,
+        'currentQuestionIndex': 0,
+        'scores': {},
+        'gameStarted': true,
+        'status': RoomStatus.playing.toString().split('.').last,
+      });
 
       // State'i güncelle
       _selectedOption = null;
