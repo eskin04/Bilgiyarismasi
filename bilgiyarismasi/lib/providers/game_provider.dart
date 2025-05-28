@@ -22,6 +22,7 @@ class GameProvider with ChangeNotifier {
   Stream<Room?>? _roomStream;
   StreamSubscription<Room?>? _roomSubscription;
   DateTime? _questionStartTime;
+  bool _isAnswerLocked = false;
 
   Room? get currentRoom => _currentRoom;
   bool get isLoading => _isLoading;
@@ -128,6 +129,22 @@ class GameProvider with ChangeNotifier {
     _roomSubscription = _roomStream?.listen(
       (room) {
         if (room != null) {
+          // Check if we're moving to a new question or question status changed
+          if (_currentRoom?.currentQuestionIndex != room.currentQuestionIndex ||
+              _currentRoom?.questionStatus != room.questionStatus) {
+            // Reset all state variables for new question
+            _selectedOption = null;
+            _hasAnswered = false;
+            _timeRemaining = room.defaultTimeLimit;
+            _questionStartTime = DateTime.now();
+            _isAnswerLocked = false;
+            
+            // If we're in waiting status, ensure buttons are enabled
+            if (room.questionStatus == QuestionStatus.waiting) {
+              _isAnswerLocked = false;
+            }
+          }
+          
           _currentRoom = room;
           notifyListeners();
         }
@@ -183,6 +200,14 @@ class GameProvider with ChangeNotifier {
     if (_currentRoom == null) return;
 
     try {
+      // Eğer oyuncu zaten cevap verdiyse, yeni cevap göndermesine izin verme
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
+      
+      if (_currentRoom!.currentAnswers.containsKey(userId)) {
+        return; // Oyuncu zaten cevap vermiş, işlemi sonlandır
+      }
+
       // Ensure we have a valid question index
       if (_currentRoom!.currentQuestionIndex < 0 || 
           _currentRoom!.currentQuestionIndex >= _currentRoom!.questions.length) {
@@ -191,10 +216,8 @@ class GameProvider with ChangeNotifier {
 
       _selectedOption = option;
       _hasAnswered = true;
+      _isAnswerLocked = true; // Cevabı kilitle
       notifyListeners();
-
-      final userId = _authService.currentUser?.uid;
-      if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
 
       final currentQuestion = _currentRoom!.questions[_currentRoom!.currentQuestionIndex];
       final isCorrect = option == currentQuestion.correctAnswer;
@@ -228,7 +251,7 @@ class GameProvider with ChangeNotifier {
         score,
       );
 
-      // Update the score immediately in the local state
+      // Update the score in the local state
       if (isCorrect) {
         final currentScore = _currentRoom!.scores[userId] ?? 0;
         _currentRoom = _currentRoom!.copyWith(
@@ -239,8 +262,23 @@ class GameProvider with ChangeNotifier {
         );
         notifyListeners();
       }
+
+      // Her iki oyuncu da cevap verdiyse
+      if (_currentRoom!.currentAnswers.length == 2) {
+        // Cevap durumunu güncelle
+        await updateQuestionStatus(QuestionStatus.feedback);
+        
+        // 2 saniye bekle
+        await Future.delayed(const Duration(seconds: 2));
+        
+        // Host ise sonraki soruya geç
+        if (isHost) {
+          await moveToNextQuestion();
+        }
+      }
     } catch (e) {
       _error = e.toString();
+      _isAnswerLocked = false; // Hata durumunda kilidi kaldır
       notifyListeners();
     }
   }
@@ -279,15 +317,36 @@ class GameProvider with ChangeNotifier {
       }
 
       await _firestoreService.moveToNextQuestion(_currentRoom!.id, userId);
+      
+      // Reset all state variables
       _selectedOption = null;
       _hasAnswered = false;
       _timeRemaining = _currentRoom!.defaultTimeLimit;
-      _questionStartTime = null; // Reset question start time
+      _questionStartTime = DateTime.now();
+      _isAnswerLocked = false;
+      
       notifyListeners();
     } catch (e) {
       _error = e.toString();
       notifyListeners();
     }
+  }
+
+  // Add a method to reset state when room updates
+  void handleRoomUpdate(Room? room) {
+    if (room == null) return;
+
+    // If we're moving to a new question
+    if (_currentRoom?.currentQuestionIndex != room.currentQuestionIndex) {
+      _selectedOption = null;
+      _hasAnswered = false;
+      _timeRemaining = room.defaultTimeLimit;
+      _questionStartTime = DateTime.now();
+      _isAnswerLocked = false;
+    }
+
+    _currentRoom = room;
+    notifyListeners();
   }
 
   void clearRoom() {

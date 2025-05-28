@@ -67,38 +67,28 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
     final gameProvider = context.read<GameProvider>();
     if (gameProvider.currentRoom == null) return;
 
-    // Update question status to feedback
-    await gameProvider.updateQuestionStatus(QuestionStatus.feedback);
-
     setState(() {
-      _showAnswers = true;
       _isAnswerLocked = true;
     });
 
-    // Calculate and update scores
-    final room = gameProvider.currentRoom!;
-    final currentUserId = _authService.currentUser?.uid;
-    if (currentUserId != null) {
-      final currentAnswer = room.currentAnswers[currentUserId];
-      final currentQuestion = room.questions[room.currentQuestionIndex];
-      final isCorrect = currentAnswer == currentQuestion.correctAnswer;
+    try {
+      // Update question status to feedback
+      await gameProvider.updateQuestionStatus(QuestionStatus.feedback);
 
-      // Calculate score based on time remaining and correctness
-      final baseScore = 10;
-      final timeBonus = (gameProvider.timeRemaining / room.defaultTimeLimit) * 5;
-      final score = isCorrect ? (baseScore + timeBonus).round() : 0;
+      // Wait for 2 seconds to show feedback
+      await Future.delayed(const Duration(seconds: 2));
 
-      // Update score in Firestore
-      await gameProvider.updateScore(score);
-    }
-
-    // Wait for 2 seconds to show feedback
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      // Only host can move to next question
-      if (gameProvider.isHost) {
-        await gameProvider.moveToNextQuestion();
+      if (mounted) {
+        // Only host can move to next question
+        if (gameProvider.isHost) {
+          await gameProvider.moveToNextQuestion();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Hata oluştu: $e')),
+        );
       }
     }
   }
@@ -109,60 +99,24 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
     final gameProvider = context.read<GameProvider>();
     if (gameProvider.currentRoom == null) return;
 
-    // Ensure we have a valid question index
-    if (gameProvider.currentRoom!.currentQuestionIndex < 0 ||
-        gameProvider.currentRoom!.currentQuestionIndex >=
-            gameProvider.currentRoom!.questions.length) {
-      return;
-    }
-
     setState(() {
       _selectedOption = option;
       _isAnswerLocked = true;
     });
 
-    await gameProvider.submitAnswer(option);
-
-    // Listen for question status changes
-    gameProvider.roomStream?.listen((room) {
-      if (room == null) return;
-
-      if (room.questionStatus == QuestionStatus.feedback && !_showAnswers) {
-        setState(() => _showAnswers = true);
-
-        // Calculate and update scores
-        final currentUserId = _authService.currentUser?.uid;
-        if (currentUserId != null) {
-          final currentAnswer = room.currentAnswers[currentUserId];
-          final currentQuestion = room.questions[room.currentQuestionIndex];
-          final isCorrect = currentAnswer == currentQuestion.correctAnswer;
-
-          // Calculate score based on time remaining and correctness
-          final baseScore = 10;
-          final timeBonus = (gameProvider.timeRemaining / room.defaultTimeLimit) * 5;
-          final score = isCorrect ? (baseScore + timeBonus).round() : 0;
-
-          // Update score in Firestore
-          gameProvider.updateScore(score);
-        }
-
-        // Wait for 2 seconds to show feedback
-        _feedbackTimer?.cancel();
-        _feedbackTimer = Timer(const Duration(seconds: 2), () {
-          if (mounted) {
-            setState(() {
-              _showAnswers = false;
-              _isAnswerLocked = false;
-              _selectedOption = null;
-            });
-            // Only host can move to next question
-            if (gameProvider.isHost) {
-              gameProvider.moveToNextQuestion();
-            }
-          }
+    try {
+      await gameProvider.submitAnswer(option);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cevap gönderilemedi: $e')),
+        );
+        setState(() {
+          _isAnswerLocked = false;
+          _selectedOption = null;
         });
       }
-    });
+    }
   }
 
   Widget _buildPlayerAvatar(
@@ -225,6 +179,20 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
     final room = gameProvider.currentRoom;
     if (room == null) return const SizedBox.shrink();
 
+    final currentUserId = _authService.currentUser?.uid;
+    final opponentId = room.players.keys.firstWhere((id) => id != currentUserId);
+    final currentPlayerInfo = room.players[currentUserId];
+    final opponentPlayerInfo = room.players[opponentId];
+
+    // Feedback aşamasında revealedAnswers kullanılır, diğer durumda currentAnswers
+    final isFeedback = room.questionStatus == QuestionStatus.feedback;
+    final myAnswer = isFeedback
+        ? room.revealedAnswers[currentUserId]
+        : room.currentAnswers[currentUserId];
+    final opponentAnswer = isFeedback
+        ? room.revealedAnswers[opponentId]
+        : room.currentAnswers[opponentId];
+
     return Column(
       children: [
         Text(
@@ -236,47 +204,104 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
         ...question.options.asMap().entries.map((entry) {
           final index = entry.key;
           final option = entry.value;
-          final isSelected = _selectedOption == option;
-          final isCorrect = _showAnswers && option == question.correctAnswer;
-          final isWrong =
-              _showAnswers && isSelected && option != question.correctAnswer;
-          final opponentSelected = room.currentAnswers.values.contains(option);
+
+          final isMySelection = myAnswer == option;
+          final isOpponentSelection = opponentAnswer == option;
+          final isCorrect = option == question.correctAnswer;
+          final isWrong = isMySelection && !isCorrect;
+
+          // Buton rengi ve stili
+          Color? buttonColor;
+          BorderSide? borderSide;
+
+          if (isFeedback) {
+            if (isCorrect) {
+              // Doğru cevap - Yeşil arka plan ve kalın yeşil kenarlık
+              buttonColor = Colors.green.shade200;
+              borderSide = BorderSide(color: Colors.green.shade700, width: 2.0);
+            } else if (isWrong) {
+              // Yanlış seçim - Kırmızı arka plan ve kalın kırmızı kenarlık
+              buttonColor = Colors.red.shade200;
+              borderSide = BorderSide(color: Colors.red.shade700, width: 2.0);
+            } else if (isOpponentSelection) {
+              // Rakibin seçimi - Mavi kenarlık
+              borderSide = const BorderSide(color: Colors.blue, width: 2.0);
+            }
+          } else {
+            // Normal seçim durumu
+            buttonColor = isMySelection ? Colors.blue.shade200 : null;
+          }
+
+          // Butonun aktif olup olmadığını belirle
+          final bool isButtonEnabled = !isFeedback
+              ? (myAnswer == null ? true : isMySelection)
+              : false;
 
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: ElevatedButton(
-              onPressed: _isAnswerLocked ? null : () => _handleAnswer(option),
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    _showAnswers
-                        ? isCorrect
-                            ? Colors.green
-                            : isWrong
-                            ? Colors.red
-                            : null
-                        : isSelected
-                        ? Colors.blue
-                        : opponentSelected
-                        ? Colors.orange.withOpacity(0.3)
-                        : null,
-                minimumSize: const Size(double.infinity, 50),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${String.fromCharCode(65 + index)}. $option',
-                    style: TextStyle(
-                      color:
-                          _showAnswers && (isCorrect || isWrong)
-                              ? Colors.white
-                              : null,
+            child: Stack(
+              children: [
+                ElevatedButton(
+                  onPressed: isButtonEnabled ? () => _handleAnswer(option) : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: buttonColor,
+                    side: borderSide,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  if (opponentSelected && !isSelected)
-                    const Icon(Icons.person, color: Colors.orange),
-                ],
-              ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${String.fromCharCode(65 + index)}. $option',
+                        style: TextStyle(
+                          color: isFeedback && (isCorrect || isWrong)
+                              ? Colors.black87
+                              : null,
+                          fontWeight: isFeedback && isCorrect
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                      if (isFeedback && isCorrect)
+                        const Icon(Icons.check_circle, color: Colors.green),
+                    ],
+                  ),
+                ),
+                if (isFeedback && (isMySelection || isOpponentSelection))
+                  Positioned(
+                    right: 8,
+                    top: 0,
+                    bottom: 0,
+                    child: Row(
+                      children: [
+                        if (isMySelection)
+                          CircleAvatar(
+                            radius: 12,
+                            backgroundImage: AssetImage(
+                                currentPlayerInfo?.avatarUrl ?? 'assets/default_avatar.png'),
+                            child: currentPlayerInfo?.avatarUrl == null
+                                ? const Icon(Icons.person, size: 16)
+                                : null,
+                          ),
+                        if (isOpponentSelection)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4.0),
+                            child: CircleAvatar(
+                              radius: 12,
+                              backgroundImage: AssetImage(
+                                  opponentPlayerInfo?.avatarUrl ?? 'assets/default_avatar.png'),
+                              child: opponentPlayerInfo?.avatarUrl == null
+                                  ? const Icon(Icons.person, size: 16)
+                                  : null,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           );
         }).toList(),
@@ -379,6 +404,11 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
         room.questionStatus == QuestionStatus.waiting &&
         room.currentQuestionIndex != _lastQuestionIndex) {
       _lastQuestionIndex = room.currentQuestionIndex;
+      _selectedOption = null;
+      _isAnswerLocked = false;
+      _showAnswers = false;
+      
+      // Start timer for new question
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _startTimer();
       });

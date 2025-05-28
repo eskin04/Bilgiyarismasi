@@ -21,12 +21,19 @@
             "request": "launch",
             "type": "dart",
             "deviceId": "emulator-5554",
-        }
+        },
+        {
+            "name": "Redmi",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "qgpn4p59pbqgbu4d",
+        },
+
     ],
     "compounds": [
         {
             "name": "Run All",
-            "configurations": ["Android", "Emulator"]
+            "configurations": ["Android", "Redmi"]
         }
     ]
 }

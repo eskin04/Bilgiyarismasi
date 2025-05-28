@@ -30,6 +30,8 @@ class Room {
   final QuestionStatus questionStatus;
   final Map<String, String> currentAnswers;
   final int defaultTimeLimit;
+  final DateTime? questionStartTime;
+  final Map<String, String> revealedAnswers;
 
   Room({
     required this.id,
@@ -46,6 +48,8 @@ class Room {
     this.questionStatus = QuestionStatus.waiting,
     this.currentAnswers = const {},
     this.defaultTimeLimit = 30,
+    this.questionStartTime,
+    this.revealedAnswers = const {},
   });
 
   factory Room.fromJson(Map<String, dynamic> json) {
@@ -78,6 +82,10 @@ class Room {
       ),
       currentAnswers: Map<String, String>.from(json['currentAnswers'] as Map? ?? {}),
       defaultTimeLimit: json['defaultTimeLimit'] as int? ?? 30,
+      questionStartTime: json['questionStartTime'] != null
+          ? (json['questionStartTime'] as Timestamp).toDate()
+          : null,
+      revealedAnswers: Map<String, String>.from(json['revealedAnswers'] as Map? ?? {}),
     );
   }
 
@@ -97,6 +105,8 @@ class Room {
       'questionStatus': questionStatus.toString().split('.').last,
       'currentAnswers': currentAnswers,
       'defaultTimeLimit': defaultTimeLimit,
+      'questionStartTime': questionStartTime != null ? Timestamp.fromDate(questionStartTime!) : null,
+      'revealedAnswers': revealedAnswers,
     };
   }
 
@@ -128,6 +138,8 @@ class Room {
     QuestionStatus? questionStatus,
     Map<String, String>? currentAnswers,
     int? defaultTimeLimit,
+    DateTime? questionStartTime,
+    Map<String, String>? revealedAnswers,
   }) {
     return Room(
       id: id ?? this.id,
@@ -144,6 +156,8 @@ class Room {
       questionStatus: questionStatus ?? this.questionStatus,
       currentAnswers: currentAnswers ?? this.currentAnswers,
       defaultTimeLimit: defaultTimeLimit ?? this.defaultTimeLimit,
+      questionStartTime: questionStartTime ?? this.questionStartTime,
+      revealedAnswers: revealedAnswers ?? this.revealedAnswers,
     );
   }
 }

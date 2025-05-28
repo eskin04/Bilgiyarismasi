@@ -197,10 +197,10 @@ class FirestoreService {
     int responseTime,
     int score,
   ) async {
+    final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
+    
     await _firestore.runTransaction((transaction) async {
-      final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await transaction.get(roomRef);
-      
       if (!doc.exists) throw Exception('Oda bulunamadı');
 
       final room = Room.fromJson(doc.data()!);
@@ -208,20 +208,7 @@ class FirestoreService {
         throw Exception('Oyun devam etmiyor');
       }
 
-      // Store answer details with timestamp
-      final answerRef = roomRef.collection('answers').doc('${userId}_$questionIndex');
-      final now = FieldValue.serverTimestamp();
-      transaction.set(answerRef, {
-        'userId': userId,
-        'questionIndex': questionIndex,
-        'selectedOption': selectedOption,
-        'isCorrect': isCorrect,
-        'responseTime': responseTime,
-        'score': score,
-        'timestamp': now,
-      });
-
-      // Update current answers
+      // Add the current answer
       final updatedAnswers = {...room.currentAnswers, userId: selectedOption};
       
       // Check if both players have answered
@@ -229,13 +216,59 @@ class FirestoreService {
           updatedAnswers.containsKey(room.hostId) && 
           updatedAnswers.containsKey(room.guestId);
 
-      // Update room with new answer and status
+      // Calculate scores for both players
+      Map<String, int> updatedScores = Map<String, int>.from(room.scores);
+      if (bothAnswered) {
+        // Calculate host score
+        final hostAnswer = updatedAnswers[room.hostId];
+        final hostIsCorrect = hostAnswer == room.questions[questionIndex].correctAnswer;
+        final hostScore = hostIsCorrect ? 10 : 0;
+        updatedScores[room.hostId] = (updatedScores[room.hostId] ?? 0) + hostScore;
+
+        // Calculate guest score
+        final guestAnswer = updatedAnswers[room.guestId!];
+        final guestIsCorrect = guestAnswer == room.questions[questionIndex].correctAnswer;
+        final guestScore = guestIsCorrect ? 10 : 0;
+        updatedScores[room.guestId!] = (updatedScores[room.guestId!] ?? 0) + guestScore;
+      }
+
+      // Update room with new answer, status, and scores
       final updatedRoom = room.copyWith(
         currentAnswers: updatedAnswers,
         questionStatus: bothAnswered ? QuestionStatus.feedback : QuestionStatus.waiting,
+        scores: updatedScores,
       );
 
       transaction.update(roomRef, updatedRoom.toJson());
+
+      // If both players have answered, schedule next question
+      if (bothAnswered) {
+        // Store answers in revealedAnswers
+        transaction.update(roomRef, {
+          'revealedAnswers': updatedAnswers,
+          'currentAnswers': {}, // Clear current answers
+          'questionStatus': QuestionStatus.feedback.toString().split('.').last,
+          'scores': updatedScores,
+        });
+
+        // Schedule next question after 2 seconds
+        Future.delayed(const Duration(seconds: 2), () async {
+          final nextIndex = questionIndex + 1;
+          if (nextIndex < room.questions.length) {
+            // Move to next question
+            await roomRef.update({
+              'currentQuestionIndex': nextIndex,
+              'questionStatus': QuestionStatus.waiting.toString().split('.').last,
+              'revealedAnswers': {}, // Clear revealed answers
+              'currentAnswers': {}, // Clear current answers
+              'questionStartTime': FieldValue.serverTimestamp(),
+            });
+          } else {
+            // End game if we've reached the last question
+            await endGame(roomId);
+          }
+        });
+      }
     });
   }
 
@@ -284,14 +317,15 @@ class FirestoreService {
       final nextQuestionIndex = room.currentQuestionIndex + 1;
       final isLastQuestion = nextQuestionIndex >= room.questions.length;
 
-      final updatedRoom = room.copyWith(
-        currentQuestionIndex: nextQuestionIndex,
-        status: isLastQuestion ? RoomStatus.finished : RoomStatus.playing,
-        questionStatus: QuestionStatus.waiting,
-        currentAnswers: {},
-      );
-
-      transaction.update(roomRef, updatedRoom.toJson());
+      // Update room with new question index and reset all answer-related fields
+      transaction.update(roomRef, {
+        'currentQuestionIndex': nextQuestionIndex,
+        'status': isLastQuestion ? RoomStatus.finished.toString().split('.').last : RoomStatus.playing.toString().split('.').last,
+        'questionStatus': QuestionStatus.waiting.toString().split('.').last,
+        'currentAnswers': {}, // Clear current answers
+        'revealedAnswers': {}, // Clear revealed answers
+        'questionStartTime': FieldValue.serverTimestamp(),
+      });
     });
   }
 
@@ -429,7 +463,7 @@ class FirestoreService {
     });
   }
 
-  Future<void> updateScore(String roomId, String userId, int newScore) async {
+  Future<void> updateScore(String roomId, String userId, int score) async {
     await _firestore.runTransaction((transaction) async {
       final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await transaction.get(roomRef);
@@ -441,7 +475,7 @@ class FirestoreService {
         throw Exception('Oyun devam etmiyor');
       }
 
-      final updatedScores = {...room.scores, userId: newScore};
+      final updatedScores = {...room.scores, userId: score};
       final updatedRoom = room.copyWith(scores: updatedScores);
 
       transaction.update(roomRef, updatedRoom.toJson());
