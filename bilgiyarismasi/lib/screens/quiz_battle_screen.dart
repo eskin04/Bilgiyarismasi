@@ -82,9 +82,9 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Hata oluştu: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Hata oluştu: $e')));
       }
     }
   }
@@ -104,9 +104,9 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
       await gameProvider.submitAnswer(option);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Cevap gönderilemedi: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Cevap gönderilemedi: $e')));
         setState(() {
           _isAnswerLocked = false;
           _selectedOption = null;
@@ -162,14 +162,21 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
         }
 
         // Eğer oyun başlamışsa ve son soruya gelinmişse, result ekranına git
-        if (gameProvider.currentRoom!.currentQuestionIndex >= gameProvider.currentRoom!.questions.length - 1 &&
-            gameProvider.currentRoom!.questionStatus == QuestionStatus.feedback) {
+        if (gameProvider.currentRoom!.currentQuestionIndex >=
+                gameProvider.currentRoom!.questions.length - 1 &&
+            gameProvider.currentRoom!.questionStatus ==
+                QuestionStatus.feedback) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => ResultScreen(room: gameProvider.currentRoom!)),
+              MaterialPageRoute(
+                builder:
+                    (context) => ResultScreen(room: gameProvider.currentRoom!),
+              ),
             );
           });
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
 
         // Normal oyun ekranını göster
@@ -208,7 +215,10 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
             children: [
               // Üst Bar
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
                   borderRadius: const BorderRadius.only(
@@ -257,19 +267,23 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Icon(
                                       Icons.category,
                                       size: 32,
-                                      color: Theme.of(context).colorScheme.primary,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                     ),
                                   ),
                                   const SizedBox(width: 16),
                                   const Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'Kategori Seçin',
@@ -281,9 +295,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                                         SizedBox(height: 4),
                                         Text(
                                           'Yarışmak istediğiniz kategoriyi seçin',
-                                          style: TextStyle(
-                                            color: Colors.grey,
-                                          ),
+                                          style: TextStyle(color: Colors.grey),
                                         ),
                                       ],
                                     ),
@@ -301,12 +313,13 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                                   filled: true,
                                   fillColor: Colors.grey[100],
                                 ),
-                                items: categories.map((String category) {
-                                  return DropdownMenuItem<String>(
-                                    value: category,
-                                    child: Text(category),
-                                  );
-                                }).toList(),
+                                items:
+                                    categories.map((String category) {
+                                      return DropdownMenuItem<String>(
+                                        value: category,
+                                        child: Text(category),
+                                      );
+                                    }).toList(),
                                 onChanged: (String? newValue) {
                                   if (newValue != null) {
                                     selectedCategory = newValue;
@@ -334,19 +347,23 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Icon(
                                       Icons.add_circle_outline,
                                       size: 32,
-                                      color: Theme.of(context).colorScheme.primary,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                     ),
                                   ),
                                   const SizedBox(width: 16),
                                   const Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'Yeni Oda Oluştur',
@@ -358,9 +375,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                                         SizedBox(height: 4),
                                         Text(
                                           'Arkadaşlarını davet et ve yarışmaya başla',
-                                          style: TextStyle(
-                                            color: Colors.grey,
-                                          ),
+                                          style: TextStyle(color: Colors.grey),
                                         ),
                                       ],
                                     ),
@@ -373,7 +388,9 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                                 height: 56,
                                 child: ElevatedButton.icon(
                                   onPressed: () async {
-                                    await gameProvider.createRoom(selectedCategory);
+                                    await gameProvider.createRoom(
+                                      selectedCategory,
+                                    );
                                   },
                                   icon: const Icon(Icons.add),
                                   label: const Text(
@@ -381,7 +398,8 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                                     style: TextStyle(fontSize: 16),
                                   ),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Theme.of(context).colorScheme.primary,
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.primary,
                                     foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
@@ -410,19 +428,25 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                                   Container(
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.secondary.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Icon(
                                       Icons.login,
                                       size: 32,
-                                      color: Theme.of(context).colorScheme.secondary,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.secondary,
                                     ),
                                   ),
                                   const SizedBox(width: 16),
                                   const Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           'Odaya Katıl',
@@ -434,9 +458,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                                         SizedBox(height: 4),
                                         Text(
                                           'Var olan bir odaya katıl',
-                                          style: TextStyle(
-                                            color: Colors.grey,
-                                          ),
+                                          style: TextStyle(color: Colors.grey),
                                         ),
                                       ],
                                     ),
@@ -462,7 +484,9 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                                 child: ElevatedButton.icon(
                                   onPressed: () async {
                                     if (_roomIdController.text.isNotEmpty) {
-                                      await gameProvider.joinRoom(_roomIdController.text);
+                                      await gameProvider.joinRoom(
+                                        _roomIdController.text,
+                                      );
                                     }
                                   },
                                   icon: const Icon(Icons.login),
@@ -471,7 +495,8 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                                     style: TextStyle(fontSize: 16),
                                   ),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Theme.of(context).colorScheme.secondary,
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.secondary,
                                     foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
@@ -509,7 +534,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
       _selectedOption = null;
       _isAnswerLocked = false;
       _showAnswers = false;
-      
+
       // Start timer for new question
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _startTimer();
@@ -517,7 +542,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
     }
 
     // Son soru kontrolü
-    if (room.currentQuestionIndex >= room.questions.length - 1 && 
+    if (room.currentQuestionIndex >= room.questions.length - 1 &&
         room.questionStatus == QuestionStatus.feedback) {
       // Son soru ve feedback aşamasında ise result ekranına geç
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -561,7 +586,10 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
             children: [
               // Üst Bar
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
                   borderRadius: const BorderRadius.only(
@@ -584,6 +612,36 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _getCategoryIcon(currentQuestion.category),
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            currentQuestion.category,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -614,7 +672,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                       const SizedBox(height: 32),
                       // Timer
                       _buildTimer(gameProvider.timeRemaining),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 16),
                       // Soru ve Seçenekler
                       Card(
                         elevation: 8,
@@ -644,9 +702,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
   ) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -657,28 +713,33 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
           children: [
             CircleAvatar(
               radius: 40,
-              backgroundColor: isCurrentUser ? Colors.blue.withOpacity(0.2) : Colors.grey[200],
-              child: playerInfo?.avatarUrl != null
-                  ? ClipOval(
-                      child: Image.asset(
-                        playerInfo!.avatarUrl,
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(Icons.person, size: 40, color: Colors.grey);
-                        },
-                      ),
-                    )
-                  : const Icon(Icons.person, size: 40, color: Colors.grey),
+              backgroundColor:
+                  isCurrentUser
+                      ? Colors.blue.withOpacity(0.2)
+                      : Colors.grey[200],
+              child:
+                  playerInfo?.avatarUrl != null
+                      ? ClipOval(
+                        child: Image.asset(
+                          playerInfo!.avatarUrl,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(
+                              Icons.person,
+                              size: 40,
+                              color: Colors.grey,
+                            );
+                          },
+                        ),
+                      )
+                      : const Icon(Icons.person, size: 40, color: Colors.grey),
             ),
             const SizedBox(height: 8),
             Text(
               playerInfo?.username ?? 'Bekleniyor',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
             Text(
@@ -701,9 +762,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
 
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -714,10 +773,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
           children: [
             Text(
               'Kalan Süre: ${timeRemaining}s',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             LinearProgressIndicator(
@@ -741,28 +797,29 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
     if (room == null) return const SizedBox.shrink();
 
     final currentUserId = _authService.currentUser?.uid;
-    final opponentId = room.players.keys.firstWhere((id) => id != currentUserId);
+    final opponentId = room.players.keys.firstWhere(
+      (id) => id != currentUserId,
+    );
     final currentPlayerInfo = room.players[currentUserId];
     final opponentPlayerInfo = room.players[opponentId];
 
     // Feedback aşamasında revealedAnswers kullanılır, diğer durumda currentAnswers
     final isFeedback = room.questionStatus == QuestionStatus.feedback;
-    final myAnswer = isFeedback
-        ? room.revealedAnswers[currentUserId]
-        : room.currentAnswers[currentUserId];
-    final opponentAnswer = isFeedback
-        ? room.revealedAnswers[opponentId]
-        : room.currentAnswers[opponentId];
+    final myAnswer =
+        isFeedback
+            ? room.revealedAnswers[currentUserId]
+            : room.currentAnswers[currentUserId];
+    final opponentAnswer =
+        isFeedback
+            ? room.revealedAnswers[opponentId]
+            : room.currentAnswers[opponentId];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           question.text,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 32),
@@ -798,16 +855,16 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
           }
 
           // Butonun aktif olup olmadığını belirle
-          final bool isButtonEnabled = !isFeedback
-              ? (myAnswer == null ? true : isMySelection)
-              : false;
+          final bool isButtonEnabled =
+              !isFeedback ? (myAnswer == null ? true : isMySelection) : false;
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
             child: Stack(
               children: [
                 ElevatedButton(
-                  onPressed: isButtonEnabled ? () => _handleAnswer(option) : null,
+                  onPressed:
+                      isButtonEnabled ? () => _handleAnswer(option) : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: buttonColor,
                     side: borderSide,
@@ -823,13 +880,15 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                       Text(
                         '${String.fromCharCode(65 + index)}. $option',
                         style: TextStyle(
-                          color: isFeedback && (isCorrect || isWrong)
-                              ? Colors.black87
-                              : null,
-                          fontWeight: isFeedback && isCorrect
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          fontSize: 16,
+                          color:
+                              isFeedback && (isCorrect || isWrong)
+                                  ? Colors.black87
+                                  : null,
+                          fontWeight:
+                              isFeedback && isCorrect
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                          fontSize: 14,
                         ),
                       ),
                       if (isFeedback && isCorrect)
@@ -848,19 +907,32 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                           CircleAvatar(
                             radius: 12,
                             backgroundColor: Colors.blue.withOpacity(0.2),
-                            child: currentPlayerInfo?.avatarUrl != null
-                                ? ClipOval(
-                                    child: Image.asset(
-                                      currentPlayerInfo!.avatarUrl,
-                                      width: 24,
-                                      height: 24,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return const Icon(Icons.person, size: 16, color: Colors.grey);
-                                      },
+                            child:
+                                currentPlayerInfo?.avatarUrl != null
+                                    ? ClipOval(
+                                      child: Image.asset(
+                                        currentPlayerInfo!.avatarUrl,
+                                        width: 24,
+                                        height: 24,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (
+                                          context,
+                                          error,
+                                          stackTrace,
+                                        ) {
+                                          return const Icon(
+                                            Icons.person,
+                                            size: 16,
+                                            color: Colors.grey,
+                                          );
+                                        },
+                                      ),
+                                    )
+                                    : const Icon(
+                                      Icons.person,
+                                      size: 16,
+                                      color: Colors.grey,
                                     ),
-                                  )
-                                : const Icon(Icons.person, size: 16, color: Colors.grey),
                           ),
                         if (isOpponentSelection)
                           Padding(
@@ -868,19 +940,32 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                             child: CircleAvatar(
                               radius: 12,
                               backgroundColor: Colors.grey[200],
-                              child: opponentPlayerInfo?.avatarUrl != null
-                                  ? ClipOval(
-                                      child: Image.asset(
-                                        opponentPlayerInfo!.avatarUrl,
-                                        width: 24,
-                                        height: 24,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return const Icon(Icons.person, size: 16, color: Colors.grey);
-                                        },
+                              child:
+                                  opponentPlayerInfo?.avatarUrl != null
+                                      ? ClipOval(
+                                        child: Image.asset(
+                                          opponentPlayerInfo!.avatarUrl,
+                                          width: 24,
+                                          height: 24,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (
+                                            context,
+                                            error,
+                                            stackTrace,
+                                          ) {
+                                            return const Icon(
+                                              Icons.person,
+                                              size: 16,
+                                              color: Colors.grey,
+                                            );
+                                          },
+                                        ),
+                                      )
+                                      : const Icon(
+                                        Icons.person,
+                                        size: 16,
+                                        color: Colors.grey,
                                       ),
-                                    )
-                                  : const Icon(Icons.person, size: 16, color: Colors.grey),
                             ),
                           ),
                       ],
@@ -892,5 +977,26 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
         }).toList(),
       ],
     );
+  }
+
+  IconData _getCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'genel kültür':
+        return Icons.school;
+      case 'tarih':
+        return Icons.history;
+      case 'coğrafya':
+        return Icons.public;
+      case 'bilim':
+        return Icons.science;
+      case 'spor':
+        return Icons.sports_soccer;
+      case 'sanat':
+        return Icons.palette;
+      case 'teknoloji':
+        return Icons.computer;
+      default:
+        return Icons.category;
+    }
   }
 }

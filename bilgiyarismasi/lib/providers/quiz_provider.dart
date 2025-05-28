@@ -48,4 +48,9 @@ class QuizProvider with ChangeNotifier {
       isCorrect: isCorrect,
     );
   }
+
+  void clearCurrentQuestion() {
+    _currentQuestion = null;
+    notifyListeners();
+  }
 } 

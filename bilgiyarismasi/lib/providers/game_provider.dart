@@ -63,7 +63,7 @@ class GameProvider with ChangeNotifier {
       // Generate questions
       final questions = await _geminiService.generateQuestions(
         category: category,
-        count: 1, // Test için 1 soru
+        count: 10, // Test için 1 soru
       );
 
       // Create room in Firestore
@@ -466,7 +466,7 @@ class GameProvider with ChangeNotifier {
       // Yeni soruları getir
       final questions = await _geminiService.generateQuestions(
         category: _currentRoom!.category,
-        count: 1, // Test için 1 soru
+        count: 10, // Test için 1 soru
       );
 
       // Odayı güncelle
