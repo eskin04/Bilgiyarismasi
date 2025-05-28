@@ -23,6 +23,10 @@ class GameProvider with ChangeNotifier {
   StreamSubscription<Room?>? _roomSubscription;
   DateTime? _questionStartTime;
   bool _isAnswerLocked = false;
+  int _lastQuestionIndex = -1;
+  bool _showAnswers = false;
+  Timer? _feedbackTimer;
+  Timer? _timer;
 
   Room? get currentRoom => _currentRoom;
   bool get isLoading => _isLoading;
@@ -59,7 +63,7 @@ class GameProvider with ChangeNotifier {
       // Generate questions
       final questions = await _geminiService.generateQuestions(
         category: category,
-        count: 10, // Test için 1 soru
+        count: 1, // Test için 1 soru
       );
 
       // Create room in Firestore
@@ -349,12 +353,31 @@ class GameProvider with ChangeNotifier {
   }
 
   void clearRoom() {
-    _currentRoom = null;
+    // Önce dinleme işlemini durdur
+    _roomSubscription?.cancel();
+    _roomSubscription = null;
     _roomStream = null;
-    _error = null;
+
+    // Tüm state'i temizle
     _timeRemaining = 30;
+    _error = null;
+    _isLoading = false;
     _selectedOption = null;
     _hasAnswered = false;
+    _questionStartTime = null;
+    _isAnswerLocked = false;
+    _lastQuestionIndex = -1;
+    _showAnswers = false;
+    _selectedOption = null;
+    _isAnswerLocked = false;
+    _feedbackTimer?.cancel();
+    _feedbackTimer = null;
+    _timer?.cancel();
+    _timer = null;
+    _currentRoom = null;
+
+    // Firestore'daki odayı temizle
+
     notifyListeners();
   }
 
@@ -394,19 +417,7 @@ class GameProvider with ChangeNotifier {
       final userId = _authService.currentUser?.uid;
       if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
 
-      // Diğer oyuncunun ID'sini bul
-      final otherPlayerId =
-          userId == _currentRoom!.hostId
-              ? _currentRoom!.guestId
-              : _currentRoom!.hostId;
-
-      // Önce diğer oyuncuyu çıkar
-      if (otherPlayerId != null) {
-        await _firestoreService.leaveRoom(_currentRoom!.id, otherPlayerId);
-      }
-
-      // Sonra kendini çıkar
-      await _firestoreService.leaveRoom(_currentRoom!.id, userId);
+      await _firestoreService.deleteRoom(_currentRoom!.id);
 
       // State'i temizle
       _roomSubscription?.cancel();
@@ -455,7 +466,7 @@ class GameProvider with ChangeNotifier {
       // Yeni soruları getir
       final questions = await _geminiService.generateQuestions(
         category: _currentRoom!.category,
-        count: 10, // Test için 1 soru
+        count: 1, // Test için 1 soru
       );
 
       // Odayı güncelle

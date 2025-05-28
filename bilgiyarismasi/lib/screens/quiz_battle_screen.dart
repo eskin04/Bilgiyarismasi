@@ -28,10 +28,6 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
   @override
   void initState() {
     super.initState();
-    final gameProvider = context.read<GameProvider>();
-    if (gameProvider.currentRoom != null) {
-      gameProvider.startListening(gameProvider.currentRoom!.id);
-    }
   }
 
   @override
@@ -119,196 +115,6 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
     }
   }
 
-  Widget _buildPlayerAvatar(
-    PlayerInfo? playerInfo,
-    int score,
-    bool isCurrentUser,
-  ) {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 40,
-          backgroundImage: AssetImage(playerInfo!.avatarUrl) as ImageProvider,
-          child:
-              playerInfo?.avatarUrl == null
-                  ? const Icon(Icons.person, size: 40)
-                  : null,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          playerInfo?.username ?? 'Bekleniyor',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Puan: $score',
-          style: TextStyle(
-            fontSize: 18,
-            color: isCurrentUser ? Colors.blue : Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTimer(int timeRemaining) {
-    final gameProvider = context.read<GameProvider>();
-    final maxTime = gameProvider.currentRoom?.defaultTimeLimit ?? 30;
-
-    return Column(
-      children: [
-        Text(
-          'Kalan Süre: ${timeRemaining}s',
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        LinearProgressIndicator(
-          value: timeRemaining / maxTime,
-          backgroundColor: Colors.grey[300],
-          valueColor: AlwaysStoppedAnimation<Color>(
-            timeRemaining > maxTime / 3 ? Colors.green : Colors.red,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuestion(Question question) {
-    final gameProvider = context.read<GameProvider>();
-    final room = gameProvider.currentRoom;
-    if (room == null) return const SizedBox.shrink();
-
-    final currentUserId = _authService.currentUser?.uid;
-    final opponentId = room.players.keys.firstWhere((id) => id != currentUserId);
-    final currentPlayerInfo = room.players[currentUserId];
-    final opponentPlayerInfo = room.players[opponentId];
-
-    // Feedback aşamasında revealedAnswers kullanılır, diğer durumda currentAnswers
-    final isFeedback = room.questionStatus == QuestionStatus.feedback;
-    final myAnswer = isFeedback
-        ? room.revealedAnswers[currentUserId]
-        : room.currentAnswers[currentUserId];
-    final opponentAnswer = isFeedback
-        ? room.revealedAnswers[opponentId]
-        : room.currentAnswers[opponentId];
-
-    return Column(
-      children: [
-        Text(
-          question.text,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 32),
-        ...question.options.asMap().entries.map((entry) {
-          final index = entry.key;
-          final option = entry.value;
-
-          final isMySelection = myAnswer == option;
-          final isOpponentSelection = opponentAnswer == option;
-          final isCorrect = option == question.correctAnswer;
-          final isWrong = isMySelection && !isCorrect;
-
-          // Buton rengi ve stili
-          Color? buttonColor;
-          BorderSide? borderSide;
-
-          if (isFeedback) {
-            if (isCorrect) {
-              // Doğru cevap - Yeşil arka plan ve kalın yeşil kenarlık
-              buttonColor = Colors.green.shade200;
-              borderSide = BorderSide(color: Colors.green.shade700, width: 2.0);
-            } else if (isWrong) {
-              // Yanlış seçim - Kırmızı arka plan ve kalın kırmızı kenarlık
-              buttonColor = Colors.red.shade200;
-              borderSide = BorderSide(color: Colors.red.shade700, width: 2.0);
-            } else if (isOpponentSelection) {
-              // Rakibin seçimi - Mavi kenarlık
-              borderSide = const BorderSide(color: Colors.blue, width: 2.0);
-            }
-          } else {
-            // Normal seçim durumu
-            buttonColor = isMySelection ? Colors.blue.shade200 : null;
-          }
-
-          // Butonun aktif olup olmadığını belirle
-          final bool isButtonEnabled = !isFeedback
-              ? (myAnswer == null ? true : isMySelection)
-              : false;
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Stack(
-              children: [
-                ElevatedButton(
-                  onPressed: isButtonEnabled ? () => _handleAnswer(option) : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: buttonColor,
-                    side: borderSide,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${String.fromCharCode(65 + index)}. $option',
-                        style: TextStyle(
-                          color: isFeedback && (isCorrect || isWrong)
-                              ? Colors.black87
-                              : null,
-                          fontWeight: isFeedback && isCorrect
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                      ),
-                      if (isFeedback && isCorrect)
-                        const Icon(Icons.check_circle, color: Colors.green),
-                    ],
-                  ),
-                ),
-                if (isFeedback && (isMySelection || isOpponentSelection))
-                  Positioned(
-                    right: 8,
-                    top: 0,
-                    bottom: 0,
-                    child: Row(
-                      children: [
-                        if (isMySelection)
-                          CircleAvatar(
-                            radius: 12,
-                            backgroundImage: AssetImage(
-                                currentPlayerInfo?.avatarUrl ?? 'assets/default_avatar.png'),
-                            child: currentPlayerInfo?.avatarUrl == null
-                                ? const Icon(Icons.person, size: 16)
-                                : null,
-                          ),
-                        if (isOpponentSelection)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 4.0),
-                            child: CircleAvatar(
-                              radius: 12,
-                              backgroundImage: AssetImage(
-                                  opponentPlayerInfo?.avatarUrl ?? 'assets/default_avatar.png'),
-                              child: opponentPlayerInfo?.avatarUrl == null
-                                  ? const Icon(Icons.person, size: 16)
-                                  : null,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          );
-        }).toList(),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Consumer<GameProvider>(
@@ -335,6 +141,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
                   ElevatedButton(
                     onPressed: () {
                       gameProvider.clearRoom();
+                      Navigator.of(context).pop();
                     },
                     child: const Text('Geri Dön'),
                   ),
@@ -344,10 +151,28 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
           );
         }
 
+        // Eğer oda yoksa oda seçim ekranını göster
         if (gameProvider.currentRoom == null) {
           return _buildRoomSelection(context, gameProvider);
         }
 
+        // Eğer oyun başlamamışsa lobby ekranını göster
+        if (!gameProvider.currentRoom!.gameStarted) {
+          return const RoomLobby();
+        }
+
+        // Eğer oyun başlamışsa ve son soruya gelinmişse, result ekranına git
+        if (gameProvider.currentRoom!.currentQuestionIndex >= gameProvider.currentRoom!.questions.length - 1 &&
+            gameProvider.currentRoom!.questionStatus == QuestionStatus.feedback) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => ResultScreen(room: gameProvider.currentRoom!)),
+            );
+          });
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+
+        // Normal oyun ekranını göster
         return _buildGameScreen(context, gameProvider);
       },
     );
@@ -367,58 +192,303 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
     ];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Çevrimiçi Oyun')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Kategori Seçimi
-            DropdownButtonFormField<String>(
-              value: selectedCategory,
-              decoration: const InputDecoration(
-                labelText: 'Kategori Seçin',
-                border: OutlineInputBorder(),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Theme.of(context).colorScheme.primary,
+              Theme.of(context).colorScheme.secondary,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Üst Bar
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(24),
+                    bottomRight: Radius.circular(24),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Çevrimiçi Oyun',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              items: categories.map((String category) {
-                return DropdownMenuItem<String>(
-                  value: category,
-                  child: Text(category),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
-                if (newValue != null) {
-                  selectedCategory = newValue;
-                }
-              },
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () async {
-                await gameProvider.createRoom(selectedCategory);
-              },
-              child: const Text('Yeni Oda Oluştur'),
-            ),
-            const SizedBox(height: 32),
-            const Text('veya', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 32),
-            TextField(
-              controller: _roomIdController,
-              decoration: const InputDecoration(
-                labelText: 'Oda ID',
-                border: OutlineInputBorder(),
+              // Ana İçerik
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Kategori Seçimi
+                      Card(
+                        elevation: 8,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      Icons.category,
+                                      size: 32,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Kategori Seçin',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          'Yarışmak istediğiniz kategoriyi seçin',
+                                          style: TextStyle(
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              DropdownButtonFormField<String>(
+                                value: selectedCategory,
+                                decoration: InputDecoration(
+                                  labelText: 'Kategori',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey[100],
+                                ),
+                                items: categories.map((String category) {
+                                  return DropdownMenuItem<String>(
+                                    value: category,
+                                    child: Text(category),
+                                  );
+                                }).toList(),
+                                onChanged: (String? newValue) {
+                                  if (newValue != null) {
+                                    selectedCategory = newValue;
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Oda Oluştur Butonu
+                      Card(
+                        elevation: 8,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      Icons.add_circle_outline,
+                                      size: 32,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Yeni Oda Oluştur',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          'Arkadaşlarını davet et ve yarışmaya başla',
+                                          style: TextStyle(
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 56,
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    await gameProvider.createRoom(selectedCategory);
+                                  },
+                                  icon: const Icon(Icons.add),
+                                  label: const Text(
+                                    'Oda Oluştur',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Theme.of(context).colorScheme.primary,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Odaya Katıl
+                      Card(
+                        elevation: 8,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.secondary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      Icons.login,
+                                      size: 32,
+                                      color: Theme.of(context).colorScheme.secondary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Odaya Katıl',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          'Var olan bir odaya katıl',
+                                          style: TextStyle(
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              TextField(
+                                controller: _roomIdController,
+                                decoration: InputDecoration(
+                                  labelText: 'Oda ID',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey[100],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 56,
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    if (_roomIdController.text.isNotEmpty) {
+                                      await gameProvider.joinRoom(_roomIdController.text);
+                                    }
+                                  },
+                                  icon: const Icon(Icons.login),
+                                  label: const Text(
+                                    'Odaya Katıl',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Theme.of(context).colorScheme.secondary,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () async {
-                if (_roomIdController.text.isNotEmpty) {
-                  await gameProvider.joinRoom(_roomIdController.text);
-                }
-              },
-              child: const Text('Odaya Katıl'),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -475,50 +545,352 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
     final currentQuestion = room.questions[room.currentQuestionIndex];
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Soru ${room.currentQuestionIndex + 1}/${room.questions.length}'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.exit_to_app),
-            onPressed: () {
-              gameProvider.clearRoom();
-            },
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Theme.of(context).colorScheme.primary,
+              Theme.of(context).colorScheme.secondary,
+            ],
           ),
-        ],
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Üst Bar
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(24),
+                    bottomRight: Radius.circular(24),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () {
+                        gameProvider.clearRoom();
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Soru ${room.currentQuestionIndex + 1}/${room.questions.length}',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Ana İçerik
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    children: [
+                      // Oyuncu Bilgileri
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildPlayerAvatar(
+                            currentPlayerInfo,
+                            room.scores[currentUserId] ?? 0,
+                            true,
+                          ),
+                          _buildPlayerAvatar(
+                            opponentInfo,
+                            room.scores[opponentId] ?? 0,
+                            false,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+                      // Timer
+                      _buildTimer(gameProvider.timeRemaining),
+                      const SizedBox(height: 32),
+                      // Soru ve Seçenekler
+                      Card(
+                        elevation: 8,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: _buildQuestion(currentQuestion),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+    );
+  }
+
+  Widget _buildPlayerAvatar(
+    PlayerInfo? playerInfo,
+    int score,
+    bool isCurrentUser,
+  ) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isCurrentUser ? Colors.blue.withOpacity(0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
         child: Column(
           children: [
-            // Player Avatars and Scores
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildPlayerAvatar(
-                  currentPlayerInfo,
-                  room.scores[currentUserId] ?? 0,
-                  true,
-                ),
-                _buildPlayerAvatar(
-                  opponentInfo,
-                  room.scores[opponentId] ?? 0,
-                  false,
-                ),
-              ],
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: isCurrentUser ? Colors.blue.withOpacity(0.2) : Colors.grey[200],
+              child: playerInfo?.avatarUrl != null
+                  ? ClipOval(
+                      child: Image.asset(
+                        playerInfo!.avatarUrl,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.person, size: 40, color: Colors.grey);
+                        },
+                      ),
+                    )
+                  : const Icon(Icons.person, size: 40, color: Colors.grey),
             ),
-            const SizedBox(height: 32),
-            // Timer
-            _buildTimer(gameProvider.timeRemaining),
-            const SizedBox(height: 32),
-            // Question and Options
-            Expanded(
-              child: SingleChildScrollView(
-                child: _buildQuestion(currentQuestion),
+            const SizedBox(height: 8),
+            Text(
+              playerInfo?.username ?? 'Bekleniyor',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Puan: $score',
+              style: TextStyle(
+                fontSize: 18,
+                color: isCurrentUser ? Colors.blue : Colors.black,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTimer(int timeRemaining) {
+    final gameProvider = context.read<GameProvider>();
+    final maxTime = gameProvider.currentRoom?.defaultTimeLimit ?? 30;
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            Text(
+              'Kalan Süre: ${timeRemaining}s',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: timeRemaining / maxTime,
+              backgroundColor: Colors.grey[300],
+              valueColor: AlwaysStoppedAnimation<Color>(
+                timeRemaining > maxTime / 3 ? Colors.green : Colors.red,
+              ),
+              minHeight: 8,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuestion(Question question) {
+    final gameProvider = context.read<GameProvider>();
+    final room = gameProvider.currentRoom;
+    if (room == null) return const SizedBox.shrink();
+
+    final currentUserId = _authService.currentUser?.uid;
+    final opponentId = room.players.keys.firstWhere((id) => id != currentUserId);
+    final currentPlayerInfo = room.players[currentUserId];
+    final opponentPlayerInfo = room.players[opponentId];
+
+    // Feedback aşamasında revealedAnswers kullanılır, diğer durumda currentAnswers
+    final isFeedback = room.questionStatus == QuestionStatus.feedback;
+    final myAnswer = isFeedback
+        ? room.revealedAnswers[currentUserId]
+        : room.currentAnswers[currentUserId];
+    final opponentAnswer = isFeedback
+        ? room.revealedAnswers[opponentId]
+        : room.currentAnswers[opponentId];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          question.text,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 32),
+        ...question.options.asMap().entries.map((entry) {
+          final index = entry.key;
+          final option = entry.value;
+
+          final isMySelection = myAnswer == option;
+          final isOpponentSelection = opponentAnswer == option;
+          final isCorrect = option == question.correctAnswer;
+          final isWrong = isMySelection && !isCorrect;
+
+          // Buton rengi ve stili
+          Color? buttonColor;
+          BorderSide? borderSide;
+
+          if (isFeedback) {
+            if (isCorrect) {
+              // Doğru cevap - Yeşil arka plan ve kalın yeşil kenarlık
+              buttonColor = Colors.green.shade200;
+              borderSide = BorderSide(color: Colors.green.shade700, width: 2.0);
+            } else if (isWrong) {
+              // Yanlış seçim - Kırmızı arka plan ve kalın kırmızı kenarlık
+              buttonColor = Colors.red.shade200;
+              borderSide = BorderSide(color: Colors.red.shade700, width: 2.0);
+            } else if (isOpponentSelection) {
+              // Rakibin seçimi - Mavi kenarlık
+              borderSide = const BorderSide(color: Colors.blue, width: 2.0);
+            }
+          } else {
+            // Normal seçim durumu
+            buttonColor = isMySelection ? Colors.blue.shade200 : null;
+          }
+
+          // Butonun aktif olup olmadığını belirle
+          final bool isButtonEnabled = !isFeedback
+              ? (myAnswer == null ? true : isMySelection)
+              : false;
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: Stack(
+              children: [
+                ElevatedButton(
+                  onPressed: isButtonEnabled ? () => _handleAnswer(option) : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: buttonColor,
+                    side: borderSide,
+                    minimumSize: const Size(double.infinity, 56),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${String.fromCharCode(65 + index)}. $option',
+                        style: TextStyle(
+                          color: isFeedback && (isCorrect || isWrong)
+                              ? Colors.black87
+                              : null,
+                          fontWeight: isFeedback && isCorrect
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          fontSize: 16,
+                        ),
+                      ),
+                      if (isFeedback && isCorrect)
+                        const Icon(Icons.check_circle, color: Colors.green),
+                    ],
+                  ),
+                ),
+                if (isFeedback && (isMySelection || isOpponentSelection))
+                  Positioned(
+                    right: 8,
+                    top: 0,
+                    bottom: 0,
+                    child: Row(
+                      children: [
+                        if (isMySelection)
+                          CircleAvatar(
+                            radius: 12,
+                            backgroundColor: Colors.blue.withOpacity(0.2),
+                            child: currentPlayerInfo?.avatarUrl != null
+                                ? ClipOval(
+                                    child: Image.asset(
+                                      currentPlayerInfo!.avatarUrl,
+                                      width: 24,
+                                      height: 24,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return const Icon(Icons.person, size: 16, color: Colors.grey);
+                                      },
+                                    ),
+                                  )
+                                : const Icon(Icons.person, size: 16, color: Colors.grey),
+                          ),
+                        if (isOpponentSelection)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4.0),
+                            child: CircleAvatar(
+                              radius: 12,
+                              backgroundColor: Colors.grey[200],
+                              child: opponentPlayerInfo?.avatarUrl != null
+                                  ? ClipOval(
+                                      child: Image.asset(
+                                        opponentPlayerInfo!.avatarUrl,
+                                        width: 24,
+                                        height: 24,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return const Icon(Icons.person, size: 16, color: Colors.grey);
+                                        },
+                                      ),
+                                    )
+                                  : const Icon(Icons.person, size: 16, color: Colors.grey),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }).toList(),
+      ],
     );
   }
 }

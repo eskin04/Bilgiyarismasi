@@ -1,24 +1,112 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import '../models/room.dart';
 import '../providers/game_provider.dart';
 import '../services/auth_service.dart';
 
-class ResultScreen extends StatelessWidget {
+class ResultScreen extends StatefulWidget {
   final Room room;
+
+  const ResultScreen({super.key, required this.room});
+
+  @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends State<ResultScreen> {
   final AuthService _authService = AuthService();
+  StreamSubscription<Room?>? _roomSubscription;
+  bool _isLoading = false;
 
-  ResultScreen({super.key, required this.room});
+  @override
+  void initState() {
+    super.initState();
+    _startListening();
+  }
 
-  Widget _buildPlayerResult(PlayerInfo? playerInfo, int score, bool isCurrentUser) {
+  void _startListening() {
+    final gameProvider = context.read<GameProvider>();
+    _roomSubscription = gameProvider.roomStream?.listen((room) {
+      if (room == null) {
+        // Oda silinmişse ana menüye dön
+        if (mounted) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _roomSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handleMainMenu() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final gameProvider = context.read<GameProvider>();
+      final currentUserId = _authService.currentUser?.uid;
+
+      if (currentUserId != null && gameProvider.currentRoom != null) {
+        // Odadan çık (host ise tüm oyuncuları çıkarır ve odayı siler)
+        gameProvider.clearRoom();
+      }
+
+      // State'i temizle
+
+      // Ana menüye dön
+      if (mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Hata oluştu: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildPlayerResult(
+    PlayerInfo? playerInfo,
+    int score,
+    bool isCurrentUser,
+  ) {
     return Column(
       children: [
         CircleAvatar(
           radius: 50,
-          backgroundImage: AssetImage(playerInfo?.avatarUrl ?? 'assets/default_avatar.png'),
-          child: playerInfo?.avatarUrl == null
-              ? const Icon(Icons.person, size: 50)
-              : null,
+          backgroundColor:
+              isCurrentUser ? Colors.blue.withOpacity(0.2) : Colors.grey[200],
+          child:
+              playerInfo?.avatarUrl != null
+                  ? ClipOval(
+                    child: Image.asset(
+                      playerInfo!.avatarUrl,
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.person,
+                          size: 50,
+                          color: Colors.grey,
+                        );
+                      },
+                    ),
+                  )
+                  : const Icon(Icons.person, size: 50, color: Colors.grey),
         ),
         const SizedBox(height: 16),
         Text(
@@ -42,7 +130,8 @@ class ResultScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRematchButton(BuildContext context, GameProvider gameProvider, Room currentRoom) {
+  Widget _buildRematchButton(BuildContext context, Room currentRoom) {
+    final gameProvider = context.read<GameProvider>();
     final currentUserId = _authService.currentUser?.uid;
     final isRequestedByMe = currentRoom.rematchRequestedBy == currentUserId;
 
@@ -57,7 +146,7 @@ class ResultScreen extends StatelessWidget {
             const SizedBox(height: 8),
             ElevatedButton(
               onPressed: () async {
-                await gameProvider.leaveRoom();
+                gameProvider.clearRoom();
                 if (context.mounted) {
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 }
@@ -82,7 +171,9 @@ class ResultScreen extends StatelessWidget {
                     await gameProvider.acceptRematch();
                     await gameProvider.startGame();
                     if (context.mounted) {
-                      Navigator.of(context).pushReplacementNamed('/quiz-battle');
+                      Navigator.of(
+                        context,
+                      ).pushReplacementNamed('/quiz-battle');
                     }
                   },
                   child: const Text('Kabul Et'),
@@ -90,14 +181,12 @@ class ResultScreen extends StatelessWidget {
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () async {
-                    await gameProvider.leaveRoom();
+                    gameProvider.clearRoom();
                     if (context.mounted) {
                       Navigator.of(context).popUntil((route) => route.isFirst);
                     }
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                   child: const Text('Reddet'),
                 ),
               ],
@@ -119,15 +208,11 @@ class ResultScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final gameProvider = context.read<GameProvider>();
     final currentUserId = _authService.currentUser?.uid;
-    final isHost = room.hostId == currentUserId;
+    final isHost = widget.room.hostId == currentUserId;
 
     return WillPopScope(
       onWillPop: () async {
-        await gameProvider.leaveRoom();
-        gameProvider.clearRoom();
-        if (context.mounted) {
-          Navigator.of(context).popUntil((route) => route.isFirst);
-        }
+        await _handleMainMenu();
         return false;
       },
       child: Scaffold(
@@ -145,18 +230,17 @@ class ResultScreen extends StatelessWidget {
             final currentRoom = snapshot.data!;
 
             // Eğer diğer oyuncu odadan çıktıysa ana menüye yönlendir
-            if (isHost && currentRoom.guestId == null || !isHost && currentRoom.hostId == null) {
+            if (isHost && currentRoom.guestId == null ||
+                !isHost && currentRoom.hostId == null) {
               Future.microtask(() {
-                gameProvider.clearRoom();
-                if (context.mounted) {
-                  Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-                }
+                _handleMainMenu();
               });
               return const Center(child: CircularProgressIndicator());
             }
 
             // Eğer oyun başladıysa QuizBattleScreen'e yönlendir
-            if (currentRoom.gameStarted && currentRoom.status == RoomStatus.playing) {
+            if (currentRoom.gameStarted &&
+                currentRoom.status == RoomStatus.playing) {
               Future.microtask(() {
                 if (context.mounted) {
                   Navigator.of(context).pushReplacementNamed('/quiz-battle');
@@ -166,7 +250,10 @@ class ResultScreen extends StatelessWidget {
 
             final hostScore = currentRoom.scores[currentRoom.hostId] ?? 0;
             final guestScore = currentRoom.scores[currentRoom.guestId] ?? 0;
-            final winner = hostScore > guestScore ? currentRoom.hostId : currentRoom.guestId;
+            final winner =
+                hostScore > guestScore
+                    ? currentRoom.hostId
+                    : currentRoom.guestId;
 
             return Center(
               child: Padding(
@@ -205,16 +292,10 @@ class ResultScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         ElevatedButton(
-                          onPressed: () async {
-                            await gameProvider.leaveRoom();
-                            gameProvider.clearRoom();
-                            if (context.mounted) {
-                              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
-                            }
-                          },
+                          onPressed: _handleMainMenu,
                           child: const Text('Ana Menü'),
                         ),
-                        _buildRematchButton(context, gameProvider, currentRoom),
+                        _buildRematchButton(context, currentRoom),
                       ],
                     ),
                   ],
@@ -226,4 +307,4 @@ class ResultScreen extends StatelessWidget {
       ),
     );
   }
-} 
+}
