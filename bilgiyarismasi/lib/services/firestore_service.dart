@@ -487,39 +487,25 @@ class FirestoreService {
       final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await roomRef.get();
       
-      if (!doc.exists) throw Exception('Oda bulunamadı');
+      if (!doc.exists) return; // Oda zaten silinmiş olabilir
 
       final room = Room.fromJson(doc.data()!);
       
-      // Eğer oyuncu host ise ve guest varsa, guest'i host yap
-      if (room.hostId == userId && room.guestId != null) {
+      // Diğer oyuncunun ID'sini bul
+      final otherPlayerId = userId == room.hostId ? room.guestId : room.hostId;
+
+      // Önce diğer oyuncuyu çıkar
+      if (otherPlayerId != null) {
         await roomRef.update({
-          'hostId': room.guestId,
-          'guestId': null,
-          'players': {
-            ...room.players,
-            room.guestId!: room.players[room.guestId!]!.copyWith(isReady: false),
-          },
-        });
-      } 
-      // Eğer oyuncu guest ise, guest'i kaldır
-      else if (room.guestId == userId) {
-        await roomRef.update({
-          'guestId': null,
-          'players': {
-            ...room.players,
-            room.hostId: room.players[room.hostId]!.copyWith(isReady: false),
-          },
+          'players.$otherPlayerId': FieldValue.delete(),
+          'guestId': FieldValue.delete(),
         });
       }
-      
-      // Eğer odada kimse kalmadıysa odayı sil
-      final updatedDoc = await roomRef.get();
-      final updatedRoom = Room.fromJson(updatedDoc.data()!);
-      if (updatedRoom.players.isEmpty) {
-        await deleteRoom(roomId);
-      }
+
+      // Sonra kendini çıkar ve odayı sil
+      await roomRef.delete();
     } catch (e) {
+      developer.log('Error leaving room: $e');
       throw Exception('Odadan çıkılırken bir hata oluştu: $e');
     }
   }

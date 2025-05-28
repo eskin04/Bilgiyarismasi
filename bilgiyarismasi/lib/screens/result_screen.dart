@@ -124,6 +124,7 @@ class ResultScreen extends StatelessWidget {
     return WillPopScope(
       onWillPop: () async {
         await gameProvider.leaveRoom();
+        gameProvider.clearRoom();
         if (context.mounted) {
           Navigator.of(context).popUntil((route) => route.isFirst);
         }
@@ -143,10 +144,23 @@ class ResultScreen extends StatelessWidget {
 
             final currentRoom = snapshot.data!;
 
+            // Eğer diğer oyuncu odadan çıktıysa ana menüye yönlendir
+            if (isHost && currentRoom.guestId == null || !isHost && currentRoom.hostId == null) {
+              Future.microtask(() {
+                gameProvider.clearRoom();
+                if (context.mounted) {
+                  Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                }
+              });
+              return const Center(child: CircularProgressIndicator());
+            }
+
             // Eğer oyun başladıysa QuizBattleScreen'e yönlendir
             if (currentRoom.gameStarted && currentRoom.status == RoomStatus.playing) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                Navigator.of(context).pushReplacementNamed('/quiz-battle');
+              Future.microtask(() {
+                if (context.mounted) {
+                  Navigator.of(context).pushReplacementNamed('/quiz-battle');
+                }
               });
             }
 
@@ -193,8 +207,9 @@ class ResultScreen extends StatelessWidget {
                         ElevatedButton(
                           onPressed: () async {
                             await gameProvider.leaveRoom();
+                            gameProvider.clearRoom();
                             if (context.mounted) {
-                              Navigator.of(context).popUntil((route) => route.isFirst);
+                              Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
                             }
                           },
                           child: const Text('Ana Menü'),

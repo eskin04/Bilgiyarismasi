@@ -394,15 +394,30 @@ class GameProvider with ChangeNotifier {
       final userId = _authService.currentUser?.uid;
       if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
 
+      // Diğer oyuncunun ID'sini bul
+      final otherPlayerId = userId == _currentRoom!.hostId 
+          ? _currentRoom!.guestId 
+          : _currentRoom!.hostId;
+
+      // Önce diğer oyuncuyu çıkar
+      if (otherPlayerId != null) {
+        await _firestoreService.leaveRoom(_currentRoom!.id, otherPlayerId);
+      }
+
+      // Sonra kendini çıkar
       await _firestoreService.leaveRoom(_currentRoom!.id, userId);
-      
+
       // State'i temizle
-      _currentRoom = null;
+      _roomSubscription?.cancel();
+      _roomSubscription = null;
       _roomStream = null;
+      _currentRoom = null;
       _error = null;
       _timeRemaining = 30;
       _selectedOption = null;
       _hasAnswered = false;
+      _questionStartTime = null;
+      _isAnswerLocked = false;
       notifyListeners();
     } catch (e) {
       _error = 'Odadan çıkılırken bir hata oluştu: $e';
