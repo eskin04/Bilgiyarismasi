@@ -481,4 +481,78 @@ class FirestoreService {
       transaction.update(roomRef, updatedRoom.toJson());
     });
   }
+
+  Future<void> leaveRoom(String roomId, String userId) async {
+    try {
+      final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
+      final doc = await roomRef.get();
+      
+      if (!doc.exists) throw Exception('Oda bulunamadı');
+
+      final room = Room.fromJson(doc.data()!);
+      
+      // Eğer oyuncu host ise ve guest varsa, guest'i host yap
+      if (room.hostId == userId && room.guestId != null) {
+        await roomRef.update({
+          'hostId': room.guestId,
+          'guestId': null,
+          'players': {
+            ...room.players,
+            room.guestId!: room.players[room.guestId!]!.copyWith(isReady: false),
+          },
+        });
+      } 
+      // Eğer oyuncu guest ise, guest'i kaldır
+      else if (room.guestId == userId) {
+        await roomRef.update({
+          'guestId': null,
+          'players': {
+            ...room.players,
+            room.hostId: room.players[room.hostId]!.copyWith(isReady: false),
+          },
+        });
+      }
+      
+      // Eğer odada kimse kalmadıysa odayı sil
+      final updatedDoc = await roomRef.get();
+      final updatedRoom = Room.fromJson(updatedDoc.data()!);
+      if (updatedRoom.players.isEmpty) {
+        await deleteRoom(roomId);
+      }
+    } catch (e) {
+      throw Exception('Odadan çıkılırken bir hata oluştu: $e');
+    }
+  }
+
+  Future<void> updateRoom(String roomId, Map<String, dynamic> data) async {
+    try {
+      final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
+      final doc = await roomRef.get();
+      
+      if (!doc.exists) throw Exception('Oda bulunamadı');
+
+      final room = Room.fromJson(doc.data()!);
+      
+      // Enum değerlerini string'e çevir
+      final updatedData = Map<String, dynamic>.from(data);
+      if (updatedData.containsKey('status')) {
+        updatedData['status'] = updatedData['status'].toString().split('.').last;
+      }
+      if (updatedData.containsKey('questionStatus')) {
+        updatedData['questionStatus'] = updatedData['questionStatus'].toString().split('.').last;
+      }
+
+      await roomRef.update(updatedData);
+    } catch (e) {
+      throw Exception('Oda güncellenirken bir hata oluştu: $e');
+    }
+  }
+
+  Future<void> deleteRoom(String roomId) async {
+    try {
+      await _firestore.collection(_roomsCollection).doc(roomId).delete();
+    } catch (e) {
+      throw Exception('Oda silinirken bir hata oluştu: $e');
+    }
+  }
 } 

@@ -32,6 +32,8 @@ class Room {
   final int defaultTimeLimit;
   final DateTime? questionStartTime;
   final Map<String, String> revealedAnswers;
+  final bool rematchRequested;
+  final String? rematchRequestedBy;
 
   Room({
     required this.id,
@@ -50,6 +52,8 @@ class Room {
     this.defaultTimeLimit = 30,
     this.questionStartTime,
     this.revealedAnswers = const {},
+    this.rematchRequested = false,
+    this.rematchRequestedBy,
   });
 
   factory Room.fromJson(Map<String, dynamic> json) {
@@ -86,6 +90,8 @@ class Room {
           ? (json['questionStartTime'] as Timestamp).toDate()
           : null,
       revealedAnswers: Map<String, String>.from(json['revealedAnswers'] as Map? ?? {}),
+      rematchRequested: json['rematchRequested'] as bool? ?? false,
+      rematchRequestedBy: json['rematchRequestedBy'] as String?,
     );
   }
 
@@ -107,6 +113,8 @@ class Room {
       'defaultTimeLimit': defaultTimeLimit,
       'questionStartTime': questionStartTime != null ? Timestamp.fromDate(questionStartTime!) : null,
       'revealedAnswers': revealedAnswers,
+      'rematchRequested': rematchRequested,
+      'rematchRequestedBy': rematchRequestedBy,
     };
   }
 
@@ -140,6 +148,8 @@ class Room {
     int? defaultTimeLimit,
     DateTime? questionStartTime,
     Map<String, String>? revealedAnswers,
+    bool? rematchRequested,
+    String? rematchRequestedBy,
   }) {
     return Room(
       id: id ?? this.id,
@@ -158,6 +168,8 @@ class Room {
       defaultTimeLimit: defaultTimeLimit ?? this.defaultTimeLimit,
       questionStartTime: questionStartTime ?? this.questionStartTime,
       revealedAnswers: revealedAnswers ?? this.revealedAnswers,
+      rematchRequested: rematchRequested ?? this.rematchRequested,
+      rematchRequestedBy: rematchRequestedBy ?? this.rematchRequestedBy,
     );
   }
 }

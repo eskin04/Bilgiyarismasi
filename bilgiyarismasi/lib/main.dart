@@ -7,11 +7,15 @@ import 'providers/auth_provider.dart';
 import 'providers/game_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/quiz_battle_screen.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MyApp());
 }
 
@@ -82,6 +86,9 @@ class MyApp extends StatelessWidget {
                 : const LoginScreen();
           },
         ),
+        routes: {
+          '/quiz-battle': (context) => const QuizBattleScreen(),
+        },
       ),
     );
   }

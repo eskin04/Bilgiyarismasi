@@ -414,9 +414,10 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
       });
     }
 
-    // Check if we've reached the end of the quiz
-    if (room.currentQuestionIndex >= room.questions.length) {
-      // Navigate to result screen
+    // Son soru kontrolü
+    if (room.currentQuestionIndex >= room.questions.length - 1 && 
+        room.questionStatus == QuestionStatus.feedback) {
+      // Son soru ve feedback aşamasında ise result ekranına geç
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => ResultScreen(room: room)),
@@ -443,7 +444,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Çevrimiçi Oyun'),
+        title: Text('Soru ${room.currentQuestionIndex + 1}/${room.questions.length}'),
         actions: [
           IconButton(
             icon: const Icon(Icons.exit_to_app),

@@ -59,7 +59,7 @@ class GameProvider with ChangeNotifier {
       // Generate questions
       final questions = await _geminiService.generateQuestions(
         category: category,
-        count: 10,
+        count: 1, // Test için 1 soru
       );
 
       // Create room in Firestore
@@ -383,6 +383,108 @@ class GameProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _error = 'Puan güncellenirken bir hata oluştu: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> leaveRoom() async {
+    if (_currentRoom == null) return;
+
+    try {
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
+
+      await _firestoreService.leaveRoom(_currentRoom!.id, userId);
+      
+      // State'i temizle
+      _currentRoom = null;
+      _roomStream = null;
+      _error = null;
+      _timeRemaining = 30;
+      _selectedOption = null;
+      _hasAnswered = false;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Odadan çıkılırken bir hata oluştu: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> requestRematch() async {
+    if (_currentRoom == null) return;
+
+    try {
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
+
+      // Yeniden oyna isteği gönder
+      await _firestoreService.updateRoom(
+        _currentRoom!.id,
+        {
+          'rematchRequested': true,
+          'rematchRequestedBy': userId,
+          'status': RoomStatus.waiting.toString(),
+        },
+      );
+    } catch (e) {
+      _error = 'Yeniden oyna isteği gönderilemedi: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> acceptRematch() async {
+    if (_currentRoom == null) return;
+
+    try {
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) throw Exception('Kullanıcı girişi yapılmamış');
+
+      // Yeni soruları getir
+      final questions = await _geminiService.generateQuestions(
+        category: _currentRoom!.category,
+        count: 1, // Test için 1 soru
+      );
+
+      // Odayı güncelle
+      await _firestoreService.updateRoom(
+        _currentRoom!.id,
+        {
+          'questions': questions.map((q) => q.toJson()).toList(),
+          'currentQuestionIndex': 0,
+          'questionStatus': QuestionStatus.waiting.toString().split('.').last,
+          'scores': {},
+          'currentAnswers': {},
+          'revealedAnswers': {},
+          'rematchRequested': false,
+          'rematchRequestedBy': null,
+          'gameStarted': true,
+          'status': RoomStatus.playing.toString().split('.').last,
+          'players': {
+            ..._currentRoom!.players,
+            _currentRoom!.hostId: _currentRoom!.players[_currentRoom!.hostId]!.copyWith(isReady: true).toJson(),
+            _currentRoom!.guestId!: _currentRoom!.players[_currentRoom!.guestId!]!.copyWith(isReady: true).toJson(),
+          },
+          'questionStartTime': FieldValue.serverTimestamp(),
+          'defaultTimeLimit': 30,
+          'currentAnswers': {},
+          'revealedAnswers': {},
+          'questionStatus': QuestionStatus.waiting.toString().split('.').last,
+          'currentQuestionIndex': 0,
+          'scores': {},
+          'gameStarted': true,
+          'status': RoomStatus.playing.toString().split('.').last,
+        },
+      );
+
+      // State'i güncelle
+      _selectedOption = null;
+      _hasAnswered = false;
+      _timeRemaining = 30;
+      _questionStartTime = DateTime.now();
+      _isAnswerLocked = false;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Yeniden oyna başlatılamadı: $e';
       notifyListeners();
     }
   }
