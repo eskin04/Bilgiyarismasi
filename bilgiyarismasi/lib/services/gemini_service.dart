@@ -35,6 +35,7 @@ Cevabın sadece aşağıdaki biçimde saf JSON array olmalı, başka hiçbir aç
 ]
 
 Gereksinimler:
+- Daha önce sorulmuş olabilecek veya klasikleşmiş soruları tekrarlama. Özgün ve yeni sorular üret.
 - Sorular Türkçe olmalı.
 - Farklı zorluk seviyelerinde (kolay, orta, zor) dengeli dağılımlı olmalı.
 - Sorular özgün, yaratıcı ve adil olmalı.

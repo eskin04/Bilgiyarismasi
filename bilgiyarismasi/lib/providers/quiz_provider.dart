@@ -3,54 +3,76 @@ import '../models/question.dart';
 import '../services/gemini_service.dart';
 import '../services/firestore_service.dart';
 
-class QuizProvider with ChangeNotifier {
+class QuizProvider extends ChangeNotifier {
   final GeminiService _geminiService = GeminiService();
   final FirestoreService _firestoreService = FirestoreService();
 
-  Question? _currentQuestion;
-  bool _isLoading = false;
-  String? _error;
+  List<Question> questions = [];
+  int currentQuestionIndex = 0;
+  int score = 0;
+  bool isQuizFinished = false;
+  bool isLoading = false;
+  String? error;
 
-  Question? get currentQuestion => _currentQuestion;
-  bool get isLoading => _isLoading;
-  String? get error => _error;
+  int get totalQuestions => 10;
+  int get remainingQuestions => totalQuestions - currentQuestionIndex;
+  double get progress => currentQuestionIndex / totalQuestions;
 
-  Future<void> generateQuestion(String category) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
+  Future<void> generateQuestions(String category) async {
     try {
-      final questions = await _geminiService.generateQuestions(
+      isLoading = true;
+      error = null;
+      questions = [];
+      currentQuestionIndex = 0;
+      score = 0;
+      isQuizFinished = false;
+      notifyListeners();
+
+      // Soruları oluştur
+      questions = await _geminiService.generateQuestions(
         category: category,
-        count: 1,
+        count: totalQuestions,
       );
-      if (questions.isNotEmpty) {
-        _currentQuestion = questions.first;
-      } else {
-        _error = 'No questions generated';
+
+      if (questions.isEmpty) {
+        error = 'Soru oluşturulamadı';
       }
     } catch (e) {
-      _error = e.toString();
+      error = e.toString();
     } finally {
-      _isLoading = false;
+      isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> submitAnswer(String answer) async {
-    if (_currentQuestion == null) return;
+  void clearCurrentQuestion() {
+    questions = [];
+    currentQuestionIndex = 0;
+    score = 0;
+    isQuizFinished = false;
+    error = null;
+    notifyListeners();
+  }
 
-    final isCorrect = answer == _currentQuestion!.correctAnswer;
+  Future<void> submitAnswer(String answer) async {
+    if (questions.isEmpty || currentQuestionIndex >= questions.length) return;
+
+    final question = questions[currentQuestionIndex];
+    final isCorrect = answer == question.correctAnswer;
     await _firestoreService.saveQuizResult(
-      question: _currentQuestion!,
+      question: question,
       userAnswer: answer,
       isCorrect: isCorrect,
     );
-  }
 
-  void clearCurrentQuestion() {
-    _currentQuestion = null;
+    if (isCorrect) {
+      score += 10;
+    }
+
+    currentQuestionIndex++;
+    if (currentQuestionIndex >= totalQuestions) {
+      isQuizFinished = true;
+    }
     notifyListeners();
   }
-} 
+}
