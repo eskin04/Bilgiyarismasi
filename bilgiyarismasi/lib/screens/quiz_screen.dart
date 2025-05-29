@@ -379,7 +379,6 @@ class _QuizScreenState extends State<QuizScreen> {
                           _showAnswers
                               ? null
                               : () async {
-                                await quizProvider.submitAnswer(option);
                                 if (context.mounted) {
                                   setState(() {
                                     _showAnswers = true;

@@ -35,7 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       await _authService.updateUserAvatar(_selectedAvatar);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -80,9 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               }
 
               if (snapshot.hasError) {
-                return Center(
-                  child: Text('Hata: ${snapshot.error}'),
-                );
+                return Center(child: Text('Hata: ${snapshot.error}'));
               }
 
               final user = snapshot.data;
@@ -99,7 +97,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     // Üst Bar
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.1),
                         borderRadius: const BorderRadius.only(
@@ -110,7 +111,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                            ),
                             onPressed: () => Navigator.pop(context),
                           ),
                           const SizedBox(width: 8),
@@ -198,9 +202,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       decoration: BoxDecoration(
                                         color: Colors.grey[200],
                                         border: Border.all(
-                                          color: _selectedAvatar == _avatars[index]
-                                              ? Theme.of(context).colorScheme.primary
-                                              : Colors.grey,
+                                          color:
+                                              _selectedAvatar == _avatars[index]
+                                                  ? Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary
+                                                  : Colors.grey,
                                           width: 2,
                                         ),
                                         borderRadius: BorderRadius.circular(12),
@@ -248,7 +255,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
                           foregroundColor: Colors.white,
                         ),
                         child: const Text(
@@ -268,4 +276,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-} 
+}

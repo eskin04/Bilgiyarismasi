@@ -248,15 +248,41 @@ class _ResultScreenState extends State<ResultScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () async {
-                    await gameProvider.acceptRematch();
-                    await gameProvider.startGame();
-                    if (context.mounted) {
-                      Navigator.of(context).pushReplacementNamed('/quiz-battle');
+                  onPressed: _isLoading ? null : () async {
+                    setState(() {
+                      _isLoading = true;
+                    });
+                    try {
+                      await gameProvider.acceptRematch();
+                      await gameProvider.startGame();
+                      if (context.mounted) {
+                        Navigator.of(context).pushReplacementNamed('/quiz-battle');
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Hata oluştu: $e')),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() {
+                          _isLoading = false;
+                        });
+                      }
                     }
                   },
-                  icon: const Icon(Icons.check, size: 18),
-                  label: const Text('Kabul Et'),
+                  icon: _isLoading 
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Icon(Icons.check, size: 18),
+                  label: Text(_isLoading ? 'Yükleniyor...' : 'Kabul Et'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,

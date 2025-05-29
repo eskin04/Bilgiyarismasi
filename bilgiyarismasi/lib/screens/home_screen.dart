@@ -46,7 +46,10 @@ class HomeScreen extends StatelessWidget {
             children: [
               // Üst Bar
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
                   borderRadius: const BorderRadius.only(
@@ -108,28 +111,33 @@ class HomeScreen extends StatelessWidget {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => const ProfileScreen(),
+                                      builder:
+                                          (context) => const ProfileScreen(),
                                     ),
                                   );
                                 },
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Row(
                                     children: [
-                                      CircleAvatar(
-                                        radius: 16,
-                                        backgroundImage: AssetImage(user.avatarUrl),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        user.username,
-                                        style: const TextStyle(
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.white.withOpacity(0.2),
+                                        ),
+                                        child: const Icon(
+                                          Icons.person,
                                           color: Colors.white,
-                                          fontWeight: FontWeight.bold,
+                                          size: 24,
                                         ),
                                       ),
                                     ],
@@ -143,12 +151,16 @@ class HomeScreen extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: IconButton(
-                                icon: const Icon(Icons.person, color: Colors.white),
+                                icon: const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                ),
                                 onPressed: () {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) => const ProfileScreen(),
+                                      builder:
+                                          (context) => const ProfileScreen(),
                                     ),
                                   );
                                 },
@@ -203,7 +215,8 @@ class HomeScreen extends StatelessWidget {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const QuizBattleScreen(),
+                                    builder:
+                                        (context) => const QuizBattleScreen(),
                                   ),
                                 );
                               },
@@ -213,7 +226,8 @@ class HomeScreen extends StatelessWidget {
                                 style: TextStyle(fontSize: 18),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Theme.of(context).colorScheme.primary,
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.primary,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -241,7 +255,8 @@ class HomeScreen extends StatelessWidget {
                                 style: TextStyle(fontSize: 18),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Theme.of(context).colorScheme.secondary,
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.secondary,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
