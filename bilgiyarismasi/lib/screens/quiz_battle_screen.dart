@@ -121,7 +121,23 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
       builder: (context, gameProvider, child) {
         if (gameProvider.isLoading) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 24),
+                  Text(
+                    'Oda Yükleniyor...',
+                    style: TextStyle(
+                      fontSize: 20,
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
         }
 
@@ -196,6 +212,7 @@ class _QuizBattleScreenState extends State<QuizBattleScreen> {
       'Sanat',
       'Teknoloji',
       'Eğlence',
+      'Karışık',
     ];
 
     return Scaffold(

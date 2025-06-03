@@ -5,12 +5,16 @@ class UserModel {
   final String email;
   final String username;
   final String avatarUrl;
+  final int singleScore;
+  final int onlineScore;
 
   UserModel({
     required this.uid,
     required this.email,
     required this.username,
     required this.avatarUrl,
+    this.singleScore = 0,
+    this.onlineScore = 0,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -19,6 +23,8 @@ class UserModel {
       email: json['email'] as String,
       username: json['username'] as String,
       avatarUrl: json['avatarUrl'] as String,
+      singleScore: json['single_score'] ?? 0,
+      onlineScore: json['online_score'] ?? 0,
     );
   }
 
@@ -28,6 +34,8 @@ class UserModel {
       'email': email,
       'username': username,
       'avatarUrl': avatarUrl,
+      'single_score': singleScore,
+      'online_score': onlineScore,
     };
   }
 
@@ -37,6 +45,8 @@ class UserModel {
       email: user.email ?? '',
       username: username,
       avatarUrl: avatarUrl,
+      singleScore: 0,
+      onlineScore: 0,
     );
   }
 } 

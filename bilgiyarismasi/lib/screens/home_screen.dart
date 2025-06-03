@@ -5,6 +5,8 @@ import '../providers/auth_provider.dart';
 import 'quiz_screen.dart';
 import 'quiz_battle_screen.dart';
 import 'profile_screen.dart';
+import 'leaderboard_screen.dart';
+import 'category_summary_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -197,7 +199,9 @@ class HomeScreen extends StatelessWidget {
                         height: 300,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF3949AB).withOpacity(0.2), // İndigo
+                          color: const Color(
+                            0xFF3949AB,
+                          ).withOpacity(0.2), // İndigo
                         ),
                       ),
                     ),
@@ -209,7 +213,9 @@ class HomeScreen extends StatelessWidget {
                         height: 200,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF5C6BC0).withOpacity(0.2), // İndigo Açık
+                          color: const Color(
+                            0xFF5C6BC0,
+                          ).withOpacity(0.2), // İndigo Açık
                         ),
                       ),
                     ),
@@ -221,7 +227,9 @@ class HomeScreen extends StatelessWidget {
                         height: 150,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF7986CB).withOpacity(0.2), // İndigo Daha Açık
+                          color: const Color(
+                            0xFF7986CB,
+                          ).withOpacity(0.2), // İndigo Daha Açık
                         ),
                       ),
                     ),
@@ -233,7 +241,9 @@ class HomeScreen extends StatelessWidget {
                         height: 100,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF9FA8DA).withOpacity(0.2), // İndigo En Açık
+                          color: const Color(
+                            0xFF9FA8DA,
+                          ).withOpacity(0.2), // İndigo En Açık
                         ),
                       ),
                     ),
@@ -253,7 +263,9 @@ class HomeScreen extends StatelessWidget {
                           height: 15,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: colors[index % colors.length].withOpacity(0.15),
+                            color: colors[index % colors.length].withOpacity(
+                              0.15,
+                            ),
                           ),
                         ),
                       );
@@ -268,7 +280,9 @@ class HomeScreen extends StatelessWidget {
                           width: 80,
                           height: 80,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF3949AB).withOpacity(0.18), // İndigo
+                            color: const Color(
+                              0xFF3949AB,
+                            ).withOpacity(0.18), // İndigo
                             borderRadius: BorderRadius.circular(20),
                           ),
                         ),
@@ -283,7 +297,9 @@ class HomeScreen extends StatelessWidget {
                           width: 60,
                           height: 60,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF5C6BC0).withOpacity(0.18), // İndigo Açık
+                            color: const Color(
+                              0xFF5C6BC0,
+                            ).withOpacity(0.18), // İndigo Açık
                             borderRadius: BorderRadius.circular(15),
                           ),
                         ),
@@ -297,7 +313,9 @@ class HomeScreen extends StatelessWidget {
                       child: Container(
                         height: 150,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF7986CB).withOpacity(0.15), // İndigo Daha Açık
+                          color: const Color(
+                            0xFF7986CB,
+                          ).withOpacity(0.15), // İndigo Daha Açık
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(100),
                             topRight: Radius.circular(100),
@@ -346,103 +364,77 @@ class HomeScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 40),
                             // Çevrimiçi Oyun Butonu
-                            Container(
-                              width: double.infinity,
-                              height: 120,
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 24,
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
                               ),
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder:
-                                          (context) => const QuizBattleScreen(),
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(Icons.people, size: 36),
-                                label: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Text(
-                                      'Çevrimiçi Oyun',
-                                      style: TextStyle(fontSize: 24),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Diğer oyuncularla yarışın',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.white.withOpacity(0.8),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(
-                                    0xFF3949AB,
-                                  ), // İndigo 600
-                                  foregroundColor: Colors.white,
-                                  elevation: 8,
-                                  shadowColor: const Color(
-                                    0xFF3949AB,
-                                  ).withOpacity(0.5),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                              child: GridView.count(
+                                crossAxisCount: 2,
+                                shrinkWrap: true,
+                                mainAxisSpacing: 18,
+                                crossAxisSpacing: 18,
+                                childAspectRatio: 0.95,
+                                physics: const NeverScrollableScrollPhysics(),
+                                children: [
+                                  _HomeMenuCard(
+                                    color: const Color(0xFF3949AB),
+                                    icon: Icons.people,
+                                    title: 'Karşılıklı',
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (context) =>
+                                                  const QuizBattleScreen(),
+                                        ),
+                                      );
+                                    },
                                   ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            // Tek Oyunculu Butonu
-                            Container(
-                              width: double.infinity,
-                              height: 120,
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                              ),
-                              child: ElevatedButton.icon(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => QuizScreen(),
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(Icons.person, size: 36),
-                                label: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Text(
-                                      'Tek Oyunculu',
-                                      style: TextStyle(fontSize: 24),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Kendinizi test edin',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.white.withOpacity(0.8),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(
-                                    0xFF5C6BC0,
-                                  ), // İndigo 400
-                                  foregroundColor: Colors.white,
-                                  elevation: 8,
-                                  shadowColor: const Color(
-                                    0xFF5C6BC0,
-                                  ).withOpacity(0.5),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                  _HomeMenuCard(
+                                    color: const Color(0xFF5C6BC0),
+                                    icon: Icons.person,
+                                    title: 'Tek Oyunculu',
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => QuizScreen(),
+                                        ),
+                                      );
+                                    },
                                   ),
-                                ),
+                                  _HomeMenuCard(
+                                    color: const Color(0xFF43A047),
+                                    icon: Icons.leaderboard,
+                                    title: 'Lider Tablosu',
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (context) =>
+                                                  const LeaderboardScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  _HomeMenuCard(
+                                    color: const Color(0xFF1976D2),
+                                    icon: Icons.bar_chart,
+                                    title: 'Kategori İstatistikleri',
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (context) =>
+                                                  const CategorySummaryScreen(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -524,6 +516,70 @@ class HomeScreen extends StatelessWidget {
                   color: Colors.white.withOpacity(0.7),
                   size: 20,
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Grid kartı widget'ı:
+class _HomeMenuCard extends StatelessWidget {
+  final Color color;
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+  const _HomeMenuCard({
+    required this.color,
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: color.withOpacity(0.18), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: Colors.white, size: 32),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
               ),
             ],
           ),

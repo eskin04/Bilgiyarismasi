@@ -1,17 +1,21 @@
+import 'package:bilgiyarismasi/screens/category_stats_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/quiz_provider.dart';
 import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
 import 'profile_screen.dart';
 
 class QuizScreen extends StatefulWidget {
   final List<String> categories = [
+    'Karışık',
+    'Genel Kültür',
     'Tarih',
     'Bilim',
     'Sanat',
     'Spor',
     'Coğrafya',
-    'Genel Kültür',
+    'Teknoloji',
   ];
 
   QuizScreen({super.key});
@@ -23,6 +27,7 @@ class QuizScreen extends StatefulWidget {
 class _QuizScreenState extends State<QuizScreen> {
   bool _showAnswers = false;
   String? _selectedOption;
+  bool _statsSaved = false;
 
   Future<void> _signOut(BuildContext context) async {
     try {
@@ -201,17 +206,27 @@ class _QuizScreenState extends State<QuizScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons.error_outline,
+                                quizProvider.error!.contains('yoğun')
+                                    ? Icons.hourglass_empty
+                                    : Icons.error_outline,
                                 size: 48,
-                                color: Colors.red,
+                                color:
+                                    quizProvider.error!.contains('yoğun')
+                                        ? Colors.orange
+                                        : Colors.red,
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'Bir Hata Oluştu',
+                                quizProvider.error!.contains('yoğun')
+                                    ? 'Sunucu Yoğun'
+                                    : 'Bir Hata Oluştu',
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.red,
+                                  color:
+                                      quizProvider.error!.contains('yoğun')
+                                          ? Colors.orange
+                                          : Colors.red,
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -676,7 +691,41 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  void _showResultDialog(BuildContext context, QuizProvider quizProvider) {
+  void _showResultDialog(
+    BuildContext context,
+    QuizProvider quizProvider,
+  ) async {
+    if (_statsSaved) return;
+    _statsSaved = true;
+    // Kategori istatistiklerini kaydet
+    try {
+      final correctAnswers = quizProvider.score ~/ 10;
+      final wrongAnswers = quizProvider.totalQuestions - correctAnswers;
+
+      await FirestoreService().saveCategoryStats(
+        category: quizProvider.questions[0].category,
+        correctAnswers: correctAnswers,
+        wrongAnswers: wrongAnswers,
+        totalScore: quizProvider.score,
+      );
+
+      // Kullanıcı skorunu güncelle
+      final authService = AuthService();
+      final user = authService.currentUser;
+      if (user != null) {
+        await FirestoreService().updateUserScore(user.uid, quizProvider.score);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('İstatistikler kaydedilirken bir hata oluştu: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder:
@@ -686,12 +735,14 @@ class _QuizScreenState extends State<QuizScreen> {
               category: quizProvider.questions[0].category,
               onPlayAgain: () {
                 Navigator.of(context).pop();
+                _statsSaved = false;
                 quizProvider.generateQuestions(
                   quizProvider.questions[0].category,
                 );
               },
               onBackToMenu: () {
                 Navigator.of(context).pop();
+                _statsSaved = false;
                 quizProvider.clearCurrentQuestion();
               },
             ),
@@ -715,6 +766,8 @@ class _QuizScreenState extends State<QuizScreen> {
         return Icons.palette;
       case 'teknoloji':
         return Icons.computer;
+      case 'karışık':
+        return Icons.shuffle;
       default:
         return Icons.category;
     }
@@ -734,6 +787,10 @@ class _QuizScreenState extends State<QuizScreen> {
         return 'Spor dalları ve sporcular';
       case 'sanat':
         return 'Sanat eserleri ve sanatçılar';
+      case 'teknoloji':
+        return 'Teknolojik gelişmeler ve cihazlar';
+      case 'karışık':
+        return 'Farklı kategorilerden sorular';
       default:
         return 'Kategori hakkında sorular';
     }

@@ -41,6 +41,8 @@ class AuthService {
         email: email,
         username: username,
         avatarUrl: avatarUrl,
+        singleScore: 0,
+        onlineScore: 0,
       );
 
       // 3. Firestore'a kullanıcı bilgilerini kaydet

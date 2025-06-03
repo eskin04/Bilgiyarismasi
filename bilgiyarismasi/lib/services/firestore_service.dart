@@ -14,20 +14,25 @@ class FirestoreService {
   final AuthService _authService = AuthService();
   static const String _roomsCollection = 'rooms';
   static const String _usersCollection = 'users';
+  static const String _categoryStatsCollection = 'category_stats';
 
   String _generateShortId() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final random = Random();
-    return List.generate(6, (index) => chars[random.nextInt(chars.length)]).join();
+    return List.generate(
+      6,
+      (index) => chars[random.nextInt(chars.length)],
+    ).join();
   }
 
   Future<String> _getUniqueRoomId() async {
     String roomId;
     bool isUnique = false;
-    
+
     do {
       roomId = _generateShortId();
-      final doc = await _firestore.collection(_roomsCollection).doc(roomId).get();
+      final doc =
+          await _firestore.collection(_roomsCollection).doc(roomId).get();
       isUnique = !doc.exists;
     } while (!isUnique);
 
@@ -40,7 +45,11 @@ class FirestoreService {
     required bool isCorrect,
   }) async {
     try {
-      final userId = _firestore.app.options.projectId!; // TODO: Replace with actual user ID
+      final userId =
+          _firestore
+              .app
+              .options
+              .projectId!; // TODO: Replace with actual user ID
       await _firestore.collection('quiz_results').add({
         'userId': userId,
         'questionId': question.text,
@@ -76,7 +85,7 @@ class FirestoreService {
         'username': user.username,
         'avatarUrl': user.avatarUrl,
       };
-      
+
       await _firestore.collection('users').doc(user.uid).set(userData);
     } catch (e) {
       throw Exception('Kullanıcı bilgileri kaydedilirken bir hata oluştu: $e');
@@ -103,22 +112,18 @@ class FirestoreService {
   }
 
   Stream<UserModel?> getUserDataStream(String uid) {
-    return _firestore
-        .collection('users')
-        .doc(uid)
-        .snapshots()
-        .map((doc) {
-          if (!doc.exists) return null;
-          final data = doc.data();
-          if (data == null) return null;
+    return _firestore.collection('users').doc(uid).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      final data = doc.data();
+      if (data == null) return null;
 
-          return UserModel(
-            uid: data['uid'] as String,
-            email: data['email'] as String,
-            username: data['username'] as String,
-            avatarUrl: data['avatarUrl'] as String,
-          );
-        });
+      return UserModel(
+        uid: data['uid'] as String,
+        email: data['email'] as String,
+        username: data['username'] as String,
+        avatarUrl: data['avatarUrl'] as String,
+      );
+    });
   }
 
   Future<String> createRoom({
@@ -141,7 +146,10 @@ class FirestoreService {
       players: {hostId: hostInfo},
     );
 
-    await _firestore.collection(_roomsCollection).doc(roomId).set(room.toJson());
+    await _firestore
+        .collection(_roomsCollection)
+        .doc(roomId)
+        .set(room.toJson());
     return roomId;
   }
 
@@ -151,11 +159,15 @@ class FirestoreService {
     return Room.fromJson(doc.data()!);
   }
 
-  Future<Room> joinRoom(String roomId, String userId, PlayerInfo playerInfo) async {
+  Future<Room> joinRoom(
+    String roomId,
+    String userId,
+    PlayerInfo playerInfo,
+  ) async {
     return _firestore.runTransaction<Room>((transaction) async {
       final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await transaction.get(roomRef);
-      
+
       if (!doc.exists) throw Exception('Oda bulunamadı');
 
       final room = Room.fromJson(doc.data()!);
@@ -177,15 +189,13 @@ class FirestoreService {
   }
 
   Stream<Room?> watchRoom(String roomId) {
-    return _firestore
-        .collection(_roomsCollection)
-        .doc(roomId)
-        .snapshots()
-        .map((doc) {
-          if (!doc.exists) return null;
-          final data = doc.data()!;
-          return Room.fromJson(data);
-        });
+    return _firestore.collection(_roomsCollection).doc(roomId).snapshots().map((
+      doc,
+    ) {
+      if (!doc.exists) return null;
+      final data = doc.data()!;
+      return Room.fromJson(data);
+    });
   }
 
   Future<void> submitAnswer(
@@ -198,7 +208,7 @@ class FirestoreService {
     int score,
   ) async {
     final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
-    
+
     await _firestore.runTransaction((transaction) async {
       final doc = await transaction.get(roomRef);
       if (!doc.exists) throw Exception('Oda bulunamadı');
@@ -210,10 +220,11 @@ class FirestoreService {
 
       // Add the current answer
       final updatedAnswers = {...room.currentAnswers, userId: selectedOption};
-      
+
       // Check if both players have answered
-      final bothAnswered = room.guestId != null && 
-          updatedAnswers.containsKey(room.hostId) && 
+      final bothAnswered =
+          room.guestId != null &&
+          updatedAnswers.containsKey(room.hostId) &&
           updatedAnswers.containsKey(room.guestId);
 
       // Calculate scores for both players
@@ -221,21 +232,26 @@ class FirestoreService {
       if (bothAnswered) {
         // Calculate host score
         final hostAnswer = updatedAnswers[room.hostId];
-        final hostIsCorrect = hostAnswer == room.questions[questionIndex].correctAnswer;
+        final hostIsCorrect =
+            hostAnswer == room.questions[questionIndex].correctAnswer;
         final hostScore = hostIsCorrect ? 10 : 0;
-        updatedScores[room.hostId] = (updatedScores[room.hostId] ?? 0) + hostScore;
+        updatedScores[room.hostId] =
+            (updatedScores[room.hostId] ?? 0) + hostScore;
 
         // Calculate guest score
         final guestAnswer = updatedAnswers[room.guestId!];
-        final guestIsCorrect = guestAnswer == room.questions[questionIndex].correctAnswer;
+        final guestIsCorrect =
+            guestAnswer == room.questions[questionIndex].correctAnswer;
         final guestScore = guestIsCorrect ? 10 : 0;
-        updatedScores[room.guestId!] = (updatedScores[room.guestId!] ?? 0) + guestScore;
+        updatedScores[room.guestId!] =
+            (updatedScores[room.guestId!] ?? 0) + guestScore;
       }
 
       // Update room with new answer, status, and scores
       final updatedRoom = room.copyWith(
         currentAnswers: updatedAnswers,
-        questionStatus: bothAnswered ? QuestionStatus.feedback : QuestionStatus.waiting,
+        questionStatus:
+            bothAnswered ? QuestionStatus.feedback : QuestionStatus.waiting,
         scores: updatedScores,
       );
 
@@ -258,7 +274,8 @@ class FirestoreService {
             // Move to next question
             await roomRef.update({
               'currentQuestionIndex': nextIndex,
-              'questionStatus': QuestionStatus.waiting.toString().split('.').last,
+              'questionStatus':
+                  QuestionStatus.waiting.toString().split('.').last,
               'revealedAnswers': {}, // Clear revealed answers
               'currentAnswers': {}, // Clear current answers
               'questionStartTime': FieldValue.serverTimestamp(),
@@ -276,7 +293,7 @@ class FirestoreService {
     await _firestore.runTransaction((transaction) async {
       final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await transaction.get(roomRef);
-      
+
       if (!doc.exists) throw Exception('Oda bulunamadı');
 
       final room = Room.fromJson(doc.data()!);
@@ -284,9 +301,7 @@ class FirestoreService {
         throw Exception('Oyun devam etmiyor');
       }
 
-      final updatedRoom = room.copyWith(
-        status: RoomStatus.finished,
-      );
+      final updatedRoom = room.copyWith(status: RoomStatus.finished);
 
       transaction.update(roomRef, updatedRoom.toJson());
     });
@@ -296,7 +311,7 @@ class FirestoreService {
     await _firestore.runTransaction((transaction) async {
       final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await transaction.get(roomRef);
-      
+
       if (!doc.exists) throw Exception('Oda bulunamadı');
 
       final room = Room.fromJson(doc.data()!);
@@ -320,7 +335,10 @@ class FirestoreService {
       // Update room with new question index and reset all answer-related fields
       transaction.update(roomRef, {
         'currentQuestionIndex': nextQuestionIndex,
-        'status': isLastQuestion ? RoomStatus.finished.toString().split('.').last : RoomStatus.playing.toString().split('.').last,
+        'status':
+            isLastQuestion
+                ? RoomStatus.finished.toString().split('.').last
+                : RoomStatus.playing.toString().split('.').last,
         'questionStatus': QuestionStatus.waiting.toString().split('.').last,
         'currentAnswers': {}, // Clear current answers
         'revealedAnswers': {}, // Clear revealed answers
@@ -333,7 +351,7 @@ class FirestoreService {
     await _firestore.runTransaction((transaction) async {
       final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await transaction.get(roomRef);
-      
+
       if (!doc.exists) throw Exception('Oda bulunamadı');
 
       final room = Room.fromJson(doc.data()!);
@@ -349,11 +367,15 @@ class FirestoreService {
   Stream<List<Room>> getActiveRooms() {
     return _firestore
         .collection(_roomsCollection)
-        .where('status', isEqualTo: RoomStatus.waiting.toString().split('.').last)
+        .where(
+          'status',
+          isEqualTo: RoomStatus.waiting.toString().split('.').last,
+        )
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Room.fromJson(doc.data()))
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Room.fromJson(doc.data())).toList(),
+        );
   }
 
   Stream<List<Room>> getUserActiveRooms(String userId) {
@@ -367,28 +389,36 @@ class FirestoreService {
         .where('status', whereIn: statusValues)
         .where('hostId', isEqualTo: userId)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Room.fromJson(doc.data()))
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Room.fromJson(doc.data())).toList(),
+        );
 
     final guestRoomsStream = _firestore
         .collection(_roomsCollection)
         .where('status', whereIn: statusValues)
         .where('guestId', isEqualTo: userId)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Room.fromJson(doc.data()))
-            .toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Room.fromJson(doc.data())).toList(),
+        );
 
     return Rx.combineLatest2(
       hostRoomsStream,
       guestRoomsStream,
-      (List<Room> hostRooms, List<Room> guestRooms) => [...hostRooms, ...guestRooms],
+      (List<Room> hostRooms, List<Room> guestRooms) => [
+        ...hostRooms,
+        ...guestRooms,
+      ],
     );
   }
 
   Future<void> saveUser(UserModel user) async {
-    await _firestore.collection(_usersCollection).doc(user.uid).set(user.toJson());
+    await _firestore
+        .collection(_usersCollection)
+        .doc(user.uid)
+        .set(user.toJson());
   }
 
   Future<UserModel?> getUser(String userId) async {
@@ -406,7 +436,7 @@ class FirestoreService {
     await _firestore.runTransaction((transaction) async {
       final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await transaction.get(roomRef);
-      
+
       if (!doc.exists) throw Exception('Oda bulunamadı');
 
       final room = Room.fromJson(doc.data()!);
@@ -423,11 +453,15 @@ class FirestoreService {
     });
   }
 
-  Future<void> updatePlayerReady(String roomId, String userId, bool isReady) async {
+  Future<void> updatePlayerReady(
+    String roomId,
+    String userId,
+    bool isReady,
+  ) async {
     await _firestore.runTransaction((transaction) async {
       final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await transaction.get(roomRef);
-      
+
       if (!doc.exists) throw Exception('Oda bulunamadı');
 
       final room = Room.fromJson(doc.data()!);
@@ -443,11 +477,14 @@ class FirestoreService {
     });
   }
 
-  Future<void> updateQuestionStatus(String roomId, QuestionStatus status) async {
+  Future<void> updateQuestionStatus(
+    String roomId,
+    QuestionStatus status,
+  ) async {
     await _firestore.runTransaction((transaction) async {
       final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await transaction.get(roomRef);
-      
+
       if (!doc.exists) throw Exception('Oda bulunamadı');
 
       final room = Room.fromJson(doc.data()!);
@@ -455,9 +492,7 @@ class FirestoreService {
         throw Exception('Oyun devam etmiyor');
       }
 
-      final updatedRoom = room.copyWith(
-        questionStatus: status,
-      );
+      final updatedRoom = room.copyWith(questionStatus: status);
 
       transaction.update(roomRef, updatedRoom.toJson());
     });
@@ -467,7 +502,7 @@ class FirestoreService {
     await _firestore.runTransaction((transaction) async {
       final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await transaction.get(roomRef);
-      
+
       if (!doc.exists) throw Exception('Oda bulunamadı');
 
       final room = Room.fromJson(doc.data()!);
@@ -486,11 +521,11 @@ class FirestoreService {
     try {
       final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await roomRef.get();
-      
+
       if (!doc.exists) return; // Oda zaten silinmiş olabilir
 
       final room = Room.fromJson(doc.data()!);
-      
+
       // Diğer oyuncunun ID'sini bul
       final otherPlayerId = userId == room.hostId ? room.guestId : room.hostId;
 
@@ -514,18 +549,20 @@ class FirestoreService {
     try {
       final roomRef = _firestore.collection(_roomsCollection).doc(roomId);
       final doc = await roomRef.get();
-      
+
       if (!doc.exists) throw Exception('Oda bulunamadı');
 
       final room = Room.fromJson(doc.data()!);
-      
+
       // Enum değerlerini string'e çevir
       final updatedData = Map<String, dynamic>.from(data);
       if (updatedData.containsKey('status')) {
-        updatedData['status'] = updatedData['status'].toString().split('.').last;
+        updatedData['status'] =
+            updatedData['status'].toString().split('.').last;
       }
       if (updatedData.containsKey('questionStatus')) {
-        updatedData['questionStatus'] = updatedData['questionStatus'].toString().split('.').last;
+        updatedData['questionStatus'] =
+            updatedData['questionStatus'].toString().split('.').last;
       }
 
       await roomRef.update(updatedData);
@@ -541,4 +578,89 @@ class FirestoreService {
       throw Exception('Oda silinirken bir hata oluştu: $e');
     }
   }
-} 
+
+  Future<void> saveCategoryStats({
+    required String category,
+    required int correctAnswers,
+    required int wrongAnswers,
+    required int totalScore,
+  }) async {
+    try {
+      final categoryRef = _firestore
+          .collection(_categoryStatsCollection)
+          .doc(category);
+
+      await _firestore.runTransaction((transaction) async {
+        final doc = await transaction.get(categoryRef);
+        
+        if (doc.exists) {
+          // Mevcut istatistikleri güncelle
+          transaction.update(categoryRef, {
+            'totalCorrect': FieldValue.increment(correctAnswers),
+            'totalWrong': FieldValue.increment(wrongAnswers),
+            'totalScore': FieldValue.increment(totalScore),
+            'totalPlays': FieldValue.increment(1),
+            'lastUpdated': FieldValue.serverTimestamp(),
+          });
+        } else {
+          // Yeni kategori istatistikleri oluştur
+          transaction.set(categoryRef, {
+            'category': category,
+            'totalCorrect': correctAnswers,
+            'totalWrong': wrongAnswers,
+            'totalScore': totalScore,
+            'totalPlays': 1,
+            'lastUpdated': FieldValue.serverTimestamp(),
+          });
+        }
+      });
+    } catch (e) {
+      developer.log('Error saving category stats: $e');
+      throw Exception('Kategori istatistikleri kaydedilirken bir hata oluştu: $e');
+    }
+  }
+
+  // Tüm kategori istatistiklerini getir
+  Stream<List<Map<String, dynamic>>> getAllCategoryStats() {
+    return _firestore
+        .collection(_categoryStatsCollection)
+        .orderBy('totalPlays', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => {
+                  'id': doc.id,
+                  ...doc.data(),
+                })
+            .toList());
+  }
+
+  // Belirli bir kategorinin istatistiklerini getir
+  Future<Map<String, dynamic>?> getCategoryStats(String category) async {
+    try {
+      final doc = await _firestore
+          .collection(_categoryStatsCollection)
+          .doc(category)
+          .get();
+
+      return doc.exists ? doc.data() : null;
+    } catch (e) {
+      developer.log('Error getting category stats: $e');
+      throw Exception('Kategori istatistikleri alınırken bir hata oluştu: $e');
+    }
+  }
+
+  // Lider tablosu için en yüksek skora sahip kullanıcıları getir
+  Stream<List<Map<String, dynamic>>> getTopUsers({int limit = 20}) {
+    return _firestore
+        .collection(_usersCollection)
+        .orderBy('score', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => {
+                  'uid': doc.id,
+                  ...doc.data(),
+                })
+            .toList());
+  }
+}

@@ -19,29 +19,46 @@ class QuizProvider extends ChangeNotifier {
   double get progress => currentQuestionIndex / totalQuestions;
 
   Future<void> generateQuestions(String category) async {
-    try {
-      isLoading = true;
-      error = null;
-      questions = [];
-      currentQuestionIndex = 0;
-      score = 0;
-      isQuizFinished = false;
-      notifyListeners();
+    int retryCount = 0;
+    const maxRetries = 3;
+    while (retryCount < maxRetries) {
+      try {
+        isLoading = true;
+        error = null;
+        questions = [];
+        currentQuestionIndex = 0;
+        score = 0;
+        isQuizFinished = false;
+        notifyListeners();
 
-      // Soruları oluştur
-      questions = await _geminiService.generateQuestions(
-        category: category,
-        count: totalQuestions,
-      );
+        // Soruları oluştur
+        questions = await _geminiService.generateQuestions(
+          category: category,
+          count: totalQuestions,
+        );
 
-      if (questions.isEmpty) {
-        error = 'Soru oluşturulamadı';
+        if (questions.isEmpty) {
+          error = 'Soru oluşturulamadı';
+        }
+        break; // Başarılıysa döngüden çık
+      } catch (e) {
+        if (e.toString().contains('503') || e.toString().contains('UNAVAILABLE')) {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            error = 'Sunucu şu anda yoğun. Lütfen birkaç saniye sonra tekrar deneyin.';
+            break;
+          } else {
+            await Future.delayed(const Duration(seconds: 2));
+            continue;
+          }
+        } else {
+          error = 'Soru oluşturulurken bir hata oluştu: \\n${e.toString()}';
+          break;
+        }
+      } finally {
+        isLoading = false;
+        notifyListeners();
       }
-    } catch (e) {
-      error = e.toString();
-    } finally {
-      isLoading = false;
-      notifyListeners();
     }
   }
 
